@@ -2,38 +2,43 @@ import gradio as gr
 from database import buscar_cliente_por_cpf
 from engine import AgenteNegociador
 
-# Inicializa o motor
+# Inicializa o cérebro da IA
 agente = AgenteNegociador()
 
 def responder_negociacao(mensagem, historico, cpf):
-    # Busca os dados no banco de dados JSON
+    """
+    Função principal que o Gradio chama a cada mensagem.
+    """
+    # Consulta o banco de dados JSON
     cliente = buscar_cliente_por_cpf(cpf)
     
     if not cliente:
-        return "Olá! Por favor, insira um CPF válido para começarmos nossa conversa."
+        return "Olá! Para iniciarmos sua consulta, por favor insira um CPF válido acima."
 
-    # Envia a pergunta do usuário e os dados do cliente para a IA
+    # Gera a resposta usando a IA
     resposta = agente.responder(mensagem, str(cliente))
     return resposta
 
-# Interface Gradio Moderna
+# Interface moderna usando Blocks
 with gr.Blocks(theme=gr.themes.Soft()) as demo:
-    gr.Markdown("# 🤖 RenovaIA: Sistema de Negociação com IA")
+    gr.Markdown("# 🤖 RenovaIA - Agente Financeiro")
+    gr.Markdown("Bem-vindo ao portal de renegociação. Identifique-se para começar.")
     
     with gr.Row():
         cpf_input = gr.Textbox(
-            label="Digite seu CPF para consulta", 
-            placeholder="Ex: 123.456.789-00"
+            label="Seu CPF", 
+            placeholder="Ex: 123.456.789-00",
+            scale=1
         )
     
-    # type="messages" é o padrão atual que evita o UserWarning
+    # Interface de chat com padrão de mensagens moderno
     chat = gr.ChatInterface(
         fn=responder_negociacao,
         additional_inputs=[cpf_input],
         type="messages",
-        title="Chat de Negociação",
-        examples=[["Quais dívidas eu tenho?"], ["Posso parcelar no boleto?"]]
+        examples=[["Quais são minhas pendências?"], ["Quero um desconto para pagar à vista."]]
     )
 
 if __name__ == "__main__":
+    # share=True gera o link público no Colab
     demo.launch(share=True)
