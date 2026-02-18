@@ -41,3 +41,17 @@ O modelo de dados segue o padrão abaixo para facilitar a leitura da LLM:
     "politica": "Max 12x"
   }
 }
+
+```
+---
+
+## 6. Estratégia de Integração (Workflow de Dados)
+
+A integração segue o padrão de **RAG Simplificado**, operando em quatro camadas:
+
+1. **Camada de Captura:** A interface (Gradio) recebe o input do usuário e extrai o CPF para consulta.
+2. **Camada de Recuperação (Retrieval):** O orquestrador em Python realiza um "lookup" no arquivo `base_conhecimento.json`, filtrando apenas os nós de dados pertinentes ao cliente identificado.
+3. **Camada de Aumento (Augmentation):** Os dados brutos do JSON são injetados no contexto do System Prompt, criando um "prompt enriquecido".
+4. **Camada de Geração (Generation):** O Gemini processa o prompt enriquecido e gera uma resposta fundamentada, garantindo que valores e prazos coincidam com o banco de dados.
+
+---
