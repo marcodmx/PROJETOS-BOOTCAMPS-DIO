@@ -1,18 +1,43 @@
 # Base de Conhecimento: RenovaIA
 
-## 1. Descrição dos Dados
-Esta base contém informações fictícias de clientes inadimplentes, simulando um extrato de conta para renegociação. O objetivo é permitir que a IA realize o "Grounding" (ancoragem), evitando que ela invente valores ou condições de pagamento.
+## 1. Visão Geral
+Este documento descreve a estrutura de dados utilizada pelo Agente RenovaIA para realizar consultas e negociações. A base de conhecimento funciona como a "única fonte da verdade" (Single Source of Truth), garantindo que a IA não invente valores ou condições de pagamento.
 
-## 2. Estrutura do Arquivo JSON
-Os dados estão organizados por CPF, contendo:
-- **Dados Pessoais:** Nome e CPF.
-- **Detalhamento da Dívida:** Produto, valor original, dias de atraso e juros.
-- **Regras de Acordo:** Valor mínimo aceitável para quitação e parcelas permitidas.
+## 2. Fontes de Dados
+Os dados estão centralizados em um arquivo estruturado que simula um sistema bancário legado:
+- **Arquivo Principal:** `data/base_conhecimento.json`
+- **Tipo de Dado:** JSON
 
-## 3. Políticas de Negociação (Regras de Negócio)
-- **Desconto à Vista:** Até 30% de desconto para dívidas com mais de 90 dias de atraso.
-- **Parcelamento:** Em até 12x com juros de 1% ao mês sobre o saldo devedor.
-- **Segunda Via:** Boletos só podem ser gerados para acordos com status "Pendente".
+## 3. Atributos dos Clientes
+Cada registro de cliente na base de conhecimento contém os seguintes campos obrigatórios:
 
-------
-*Nota: Todos os CPFs e nomes neste projeto são gerados aleatoriamente para fins de teste.*
+| Campo | Descrição |
+| :--- | :--- |
+| `nome` | Nome completo do titular da conta. |
+| `cpf` | Identificador único (mascarado para segurança). |
+| `produto` | Tipo de dívida (Cartão, Empréstimo, Financiamento). |
+| `valor_original` | Valor principal da dívida antes dos juros. |
+| `dias_atraso` | Tempo de inadimplência (essencial para cálculo de descontos). |
+| `oferta_minima` | O menor valor que a IA pode aceitar para quitação à vista. |
+
+## 4. Regras de Negócio e Políticas
+O Agente deve seguir rigorosamente as diretrizes abaixo durante a interação:
+
+- [x] **Cálculo de Desconto:** Dívidas acima de 90 dias podem receber até 30% de desconto no valor total.
+- [x] **Parcelamento:** Limite máximo de 12 parcelas para cartões e 24 para empréstimos pessoais.
+- [x] **Status de Acordo:** Somente clientes com status "Inadimplente" recebem ofertas ativas de negociação.
+- [x] **Transbordo:** Casos onde o cliente não aceita nenhuma das 3 propostas automáticas devem ser encaminhados ao suporte humano.
+
+---
+
+## 5. Exemplo de Estrutura (JSON)
+O modelo de dados segue o padrão abaixo para facilitar a leitura da LLM:
+
+```json
+{
+  "cliente": {
+    "nome": "Exemplo",
+    "divida": 1000.00,
+    "politica": "Max 12x"
+  }
+}
