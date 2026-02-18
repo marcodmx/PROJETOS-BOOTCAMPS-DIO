@@ -2,13 +2,13 @@ import gradio as gr
 from database import buscar_cliente_por_cpf
 from engine import AgenteNegociador
 
-# Inicializa o motor
+# Inicializa o motor da IA
 agente = AgenteNegociador()
 
 def responder_negociacao(mensagem, historico, cpf):
     cliente = buscar_cliente_por_cpf(cpf)
     if not cliente:
-        return "Olá! Por favor, informe um CPF válido para iniciarmos."
+        return "Olá! Por favor, informe um CPF válido para iniciarmos a consulta."
     
     return agente.responder(mensagem, str(cliente))
 
@@ -21,10 +21,8 @@ with gr.Blocks() as demo:
     
     chat = gr.ChatInterface(
         fn=responder_negociacao,
-        additional_inputs=[cpf_input],
-        type="messages"
+        additional_inputs=[cpf_input]
     )
 
 if __name__ == "__main__":
-    # O tema é passado aqui para evitar o DeprecationWarning do Gradio 6.0
     demo.launch(share=True, theme=gr.themes.Soft())
