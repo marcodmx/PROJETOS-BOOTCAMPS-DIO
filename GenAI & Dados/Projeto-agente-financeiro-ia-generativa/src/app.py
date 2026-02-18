@@ -1,56 +1,87 @@
 import gradio as gr
-import datetime
 from database import buscar_cliente_por_cpf
 from engine import AgenteNegociador
 
 agente = AgenteNegociador()
 
-def obter_saudacao():
-    hora = datetime.datetime.now().hour
-    if 5 <= hora < 12:
-        return "Bom dia"
-    elif 12 <= hora < 18:
-        return "Boa tarde"
+def validar_e_avancar(cpf_numeros):
+    # Limpa o CPF para buscar no banco
+    cpf_limpo = cpf_numeros.replace(".", "").replace("-", "").strip()
+    
+    if len(cpf_limpo) != 11:
+        return gr.update(visible=True), gr.update(visible=False), "⚠️ Digite os 11 números do CPF."
+    
+    cliente = buscar_cliente_por_cpf(cpf_limpo)
+    
+    if cliente:
+        # Se achou, esconde a tela de login e mostra a tela de chat
+        saudacao = f"Olá, {cliente['nome'].split()[0]}! Localizamos sua conta."
+        return gr.update(visible=False), gr.update(visible=True), saudacao
     else:
-        return "Boa noite"
+        return gr.update(visible=True), gr.update(visible=False), "❌ CPF não localizado ou sem pendências."
 
-def responder_negociacao(mensagem, historico, cpf):
-    if not cpf or len(cpf) < 3:
-        return "⚠️ Por favor, primeiro digite seu CPF no campo acima para que eu possa te reconhecer."
-    
-    cliente = buscar_cliente_por_cpf(cpf)
-    if not cliente:
-        return f"Olá! Não encontrei nenhum cadastro com o CPF informado ({cpf}). Pode conferir os números?"
-    
-    return agente.responder(mensagem, str(cliente))
+with gr.Blocks(theme=gr.themes.Soft()) as demo:
+    # --- ESTADO INTERNO ---
+    cliente_atual = gr.State()
 
-# Customização visual com CSS
-css = """
-.gradio-container { background-color: #f8f9fa; }
-#title { text-align: center; color: #2d3748; margin-bottom: 20px; }
-"""
+    # --- TELA 1: LOGIN / CPF ---
+    with gr.Column(visible=True) as tela_login:
+        gr.Markdown("## 🏦 Portal de Renegociação RenovaIA")
+        gr.Markdown("Digite seu CPF para consultar ofertas exclusivas.")
+        
+        with gr.Row(variant="panel"):
+            cpf_input = gr.Textbox(
+                label="CPF (apenas números)",
+                placeholder="000.000.000-00",
+                max_length=14,
+                container=False,
+                autofocus=True,
+                elem_id="cpf_box"
+            )
+        
+        btn_verificar = gr.Button("🔍 VERIFICAR PENDÊNCIAS", variant="primary", size="lg")
+        msg_erro = gr.Markdown("")
 
-with gr.Blocks(css=css, theme=gr.themes.Soft()) as demo:
-    gr.Markdown("# 🤖 RenovaIA", elem_id="title")
-    gr.Markdown(f"### ✨ {obter_saudacao()}! Sou seu assistente financeiro.")
-    
-    with gr.Row():
-        cpf_input = gr.Textbox(
-            label="📌 Digite seu CPF para começar", 
-            placeholder="000.000.000-00",
-            scale=2
+    # --- TELA 2: CHAT (Inicia Escondida) ---
+    with gr.Column(visible=False) as tela_chat:
+        saudacao_header = gr.Markdown("### ✨ Bem-vindo")
+        
+        chatbot = gr.Chatbot(label="Atendimento RenovaIA", height=450)
+        with gr.Row():
+            msg_input = gr.Textbox(
+                placeholder="Como posso te ajudar com sua dívida?",
+                show_label=False,
+                scale=9
+            )
+            btn_enviar = gr.Button("Enviar", scale=1)
+        
+        gr.Examples(
+            examples=["Quais são minhas opções?", "Quero um desconto à vista", "Posso parcelar?"],
+            inputs=msg_input
         )
-    
-    gr.ChatInterface(
-        fn=responder_negociacao,
-        additional_inputs=[cpf_input],
-        examples=[
-            ["Quais são minhas dívidas em aberto?"],
-            ["Quais as opções de parcelamento?"],
-            ["Tenho direito a algum desconto à vista?"]
-        ],
-        description="Fale comigo sobre suas pendências e vamos encontrar a melhor solução juntos."
+
+    # --- LÓGICA DE TRANSIÇÃO ---
+    # Ao clicar ou dar Enter no CPF
+    btn_verificar.click(
+        validar_e_avancar, 
+        inputs=[cpf_input], 
+        outputs=[tela_login, tela_chat, saudacao_header]
     )
+    cpf_input.submit(
+        validar_e_avancar, 
+        inputs=[cpf_input], 
+        outputs=[tela_login, tela_chat, saudacao_header]
+    )
+
+    # Lógica do Chat
+    def chat_fluxo(mensagem, historico, cpf):
+        cliente = buscar_cliente_por_cpf(cpf)
+        resposta = agente.responder(mensagem, str(cliente))
+        historico.append((mensagem, resposta))
+        return historico, ""
+
+    btn_enviar.click(chat_fluxo, [msg_input, chatbot, cpf_input], [chatbot, msg_input])
+    msg_input.submit(chat_fluxo, [msg_input, chatbot, cpf_input], [chatbot, msg_input])
 
 if __name__ == "__main__":
     demo.launch(share=True)
