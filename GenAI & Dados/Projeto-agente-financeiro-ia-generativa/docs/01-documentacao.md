@@ -49,14 +49,16 @@ graph TD
     G --> A
     H --> A
 ```
-### Componentes
+
+### Componentes Técnicos
 
 | Componente | Descrição |
-|------------|-----------|
-| Interface | Gradio executado no Google Colab para interação via chat com o usuário. |
-| LLM | Google Gemini 1.5 Flash via API para processamento de linguagem natural e lógica do agente. |
-| Base de Conhecimento | Arquivo JSON (mockado) com dados de clientes, contratos, dívidas e prazos para consulta (RAG simplificado). |
-| Validação | Camada de regras de negócio e system instructions para evitar alucinações e proteger dados sensíveis. |
+| :--- | :--- |
+| **Interface** | Chatbot interativo desenvolvido em Gradio, otimizado para simular a experiência de atendimento bancário via mobile. |
+| **LLM** | Google Gemini 1.5 Flash, escolhido pela alta velocidade de processamento e precisão em tarefas de negociação. |
+| **Orquestração** | Lógica em Python utilizando System Instructions para gerenciar o fluxo de diálogo e a recuperação de dados. |
+| **Base de Conhecimento** | Arquivo JSON (mockado) com dados de clientes, contratos, dívidas e prazos para consulta (RAG simplificado). |
+| **Validação** | Camada de regras de negócio e instruções de sistema para evitar alucinações e proteger dados sensíveis. |
 
 ## 4. Segurança e Anti-Alucinação
 
