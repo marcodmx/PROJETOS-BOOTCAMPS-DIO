@@ -6,6 +6,13 @@ from google.genai import types
 agente = AgenteNegociador()
 
 def responder_chat(mensagem, historico, cpf_com_mascara):
+    # Lógica de ajuda rápida (Interceptação)
+    if mensagem == "❓ Ajuda":
+        res = "🆘 **Precisa de uma mãozinha?**\n1. Digite sua dúvida sobre as parcelas.\n2. Use os botões abaixo para ações rápidas.\n3. Ligue para 0800 777 0000 para falar com um humano."
+        historico.append({"role": "user", "content": mensagem})
+        historico.append({"role": "assistant", "content": res})
+        return historico, ""
+
     cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     nome_cliente = cliente['nome'].split()[0] if cliente else "Cliente"
@@ -15,15 +22,18 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
         ultima_resposta = historico[-1]['content']
         if "digite uma nota de 1 a 10" in str(ultima_resposta).lower():
             if mensagem.isdigit() and 1 <= int(mensagem) <= 10:
-                res = f"🌟 **Nota {mensagem} registrada!** Obrigado, {nome_cliente}. A RenovaIA agradece seu feedback! ✨"
+                res = f"🌟 **Nota {mensagem} registrada!** Obrigado, {nome_cliente}. Até logo! ✨"
                 historico.append({"role": "user", "content": f"Nota: {mensagem}"})
                 historico.append({"role": "assistant", "content": res})
                 return historico, ""
 
+    # Gatilhos de Botões
     if "Já efetuei o pagamento" in mensagem:
-        res = "✍️ **Confirmado!** Em até 3 dias úteis seu limite será restabelecido. Parabéns! 🙌"
+        res = "✍️ **Confirmado!** Em até 3 dias úteis o sistema dará baixa. Parabéns! 🙌"
     elif "Encerrar Atendimento" in mensagem:
         res = f"Foi um prazer ajudar, {nome_cliente}! ✅ **Por favor, digite uma nota de 1 a 10** para meu atendimento. 👇"
+    elif "🔍 Verificar Ofertas" in mensagem:
+        res = f"João, suas ofertas atuais são: **À Vista (R$ 1.850)** ou **Parcelado (até 12x)**. Qual faz mais sentido?"
     else:
         historico_ia = []
         for turno in historico:
@@ -43,17 +53,18 @@ def validar_e_entrar(cpf_com_mascara):
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     if cliente:
         nome = cliente['nome'].split()[0]
-        msg = f"✨ **Olá, {nome}!** Sou seu consultor RenovaIA. Vamos regularizar sua saúde financeira com transparência total? 🤝"
+        msg = f"✨ **Olá, {nome}!** Sou seu consultor RenovaIA. Vamos regularizar sua saúde financeira hoje? 🤝"
         return gr.update(visible=False), gr.update(visible=True), [{"role": "assistant", "content": msg}], ""
     return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não localizado."
 
-# CSS para destacar o bloco de código do boleto
+# CSS Melhorado para botões e blocos de código
 meu_css = """
-.btn-banco { background: #2b6cb0 !important; color: white !important; font-weight: bold !important; }
-code { background-color: #f7fafc !important; color: #2d3748 !important; border: 1px solid #e2e8f0 !important; padding: 4px !important; border-radius: 4px; }
+.btn-banco { background: #2b6cb0 !important; color: white !important; font-weight: bold !important; border-radius: 8px !important; }
+code { background-color: #f7fafc !important; color: #2d3748 !important; padding: 4px !important; border-radius: 4px; border: 1px solid #e2e8f0 !important; }
+footer {visibility: hidden} 
 """
 
-with gr.Blocks(title="RenovaIA") as demo:
+with gr.Blocks(title="RenovaIA", css=meu_css) as demo:
     with gr.Column(visible=True) as tela_login:
         gr.Markdown("<h1 style='text-align: center; color: #2b6cb0;'>🏦 RenovaIA</h1>")
         cpf_input = gr.Textbox(label="Acesse com seu CPF", placeholder="000.000.000-00")
@@ -61,15 +72,27 @@ with gr.Blocks(title="RenovaIA") as demo:
         status_msg = gr.Markdown("")
 
     with gr.Column(visible=False) as tela_chat:
-        chatbot = gr.Chatbot(label="Atendimento RenovaIA", height=550)
+        chatbot = gr.Chatbot(label="Atendimento RenovaIA", height=500, show_label=False)
         with gr.Row():
-            txt_msg = gr.Textbox(placeholder="Escolha uma opção ou tire dúvidas...", scale=8)
+            # show_label=False remove o texto "Textbox" feio em cima do campo
+            txt_msg = gr.Textbox(placeholder="Escolha uma opção abaixo ou digite aqui...", scale=8, show_label=False)
             btn_send = gr.Button("Enviar", variant="primary", scale=2)
-        gr.Examples(examples=["✅ Já efetuei o pagamento", "🚪 Encerrar Atendimento"], inputs=txt_msg)
+        
+        # Exemplos transformados em Menu de Ações
+        gr.Examples(
+            label="Escolha uma opção:",
+            examples=[
+                "🔍 Verificar Ofertas",
+                "✅ Já efetuei o pagamento", 
+                "🚪 Encerrar Atendimento",
+                "❓ Ajuda"
+            ], 
+            inputs=txt_msg
+        )
 
     btn_verificar.click(validar_e_entrar, [cpf_input], [tela_login, tela_chat, chatbot, status_msg])
     btn_send.click(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
     txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
 
 if __name__ == "__main__":
-    demo.launch(share=True, css=meu_css)
+    demo.launch(share=True)
