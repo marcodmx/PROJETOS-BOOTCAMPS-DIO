@@ -15,9 +15,8 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
     else:
         res = agente.responder(mensagem, str(cliente))
     
-    # FORMATO EXIGIDO PELO GRADIO NOVO (Dicionários)
-    historico.append({"role": "user", "content": mensagem})
-    historico.append({"role": "assistant", "content": res})
+    # Formato Universal: Lista de listas [pergunta, resposta]
+    historico.append([mensagem, res])
     return historico, ""
 
 def validar_e_entrar(cpf_com_mascara):
@@ -28,12 +27,13 @@ def validar_e_entrar(cpf_com_mascara):
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     if cliente:
         nome = cliente['nome'].split()[0]
-        # Histórico inicial no formato de dicionário
-        hist_inicial = [{"role": "assistant", "content": f"✨ **Olá, {nome}!** Que bom te ver por aqui. Encontrei ótimas oportunidades para cuidarmos da sua saúde financeira hoje. Vamos dar uma olhada?"}]
+        # Mensagem inicial como a primeira 'resposta' do bot (None para o usuário)
+        hist_inicial = [[None, f"✨ **Olá, {nome}!** Que bom te ver por aqui. Encontrei ótimas oportunidades para cuidarmos da sua saúde financeira hoje. Vamos dar uma olhada?"]]
         return gr.update(visible=False), gr.update(visible=True), hist_inicial, ""
     return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não localizado."
 
-css = ".btn-banco { background: #2b6cb0 !important; color: white !important; font-weight: bold !important; }"
+# CSS simples e direto
+meu_css = ".btn-banco { background: #2b6cb0 !important; color: white !important; font-weight: bold !important; }"
 
 with gr.Blocks(title="RenovaIA") as demo:
     with gr.Column(visible=True) as tela_login:
@@ -43,10 +43,10 @@ with gr.Blocks(title="RenovaIA") as demo:
         status_msg = gr.Markdown("")
 
     with gr.Column(visible=False) as tela_chat:
-        # Importante: type="messages" é o padrão agora, mas vamos deixar explícito
-        chatbot = gr.Chatbot(label="Atendimento", height=500, type="messages")
+        # REMOVIDO o parâmetro 'type' que estava quebrando
+        chatbot = gr.Chatbot(label="Atendimento", height=500)
         with gr.Row():
-            txt_msg = gr.Textbox(placeholder="Digite aqui...", show_label=False, scale=8)
+            txt_msg = gr.Textbox(placeholder="Como posso ajudar?", show_label=False, scale=8)
             btn_send = gr.Button("Enviar", scale=2)
             
         gr.Examples(examples=["✅ Já efetuei o pagamento", "🚪 Encerrar Atendimento"], inputs=txt_msg)
@@ -56,4 +56,5 @@ with gr.Blocks(title="RenovaIA") as demo:
     txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
 
 if __name__ == "__main__":
-    demo.launch(css=css, share=True, debug=True)
+    # Mantendo share=True para o Colab
+    demo.launch(css=meu_css, share=True)
