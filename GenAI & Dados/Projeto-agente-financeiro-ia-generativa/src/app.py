@@ -5,7 +5,6 @@ from engine import AgenteNegociador
 from google.genai import types
 
 agente = AgenteNegociador()
-
 meu_css = ".gradio-container { background-color: #f7fafc; } .main-header { text-align: center; color: #2c5282; }"
 
 def extrair_texto(conteudo):
@@ -54,7 +53,7 @@ with gr.Blocks(title="RenovaIA") as demo:
         status = gr.Markdown("")
 
     with gr.Column(visible=False) as tela_chat:
-        # AQUI ESTAVA O ERRO: Removido o type="messages"
+        # Chatbot limpo, sem o argumento 'type' que causava erro
         chatbot = gr.Chatbot(label="Consultor RenovaIA", height=550)
         with gr.Row():
             txt_msg = gr.Textbox(placeholder="Digite sua dúvida...", scale=8, show_label=False)
