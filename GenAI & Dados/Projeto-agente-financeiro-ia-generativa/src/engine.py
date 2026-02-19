@@ -8,52 +8,49 @@ load_dotenv()
 class AgenteNegociador:
     def __init__(self):
         api_key = os.getenv("GOOGLE_API_KEY")
-        if not api_key: raise ValueError("GOOGLE_API_KEY não encontrada!")
+        if not api_key: raise ValueError("GOOGLE_API_KEY ausente!")
+        
+        # Inicializa o cliente
         self.client = genai.Client(api_key=api_key)
         
-        # Forçamos o modelo estável para evitar erros de permissão em modelos experimentais
-        self.model_id = "gemini-1.5-flash"
-        print(f"✅ Motor Ativo: {self.model_id}")
+        # 🔍 DESCOBERTA DINÂMICA (Para matar o erro 404)
+        try:
+            modelos = self.client.models.list()
+            # Procuramos por qualquer um que seja 'gemini-1.5-flash'
+            # A API pode retornar 'gemini-1.5-flash' ou 'models/gemini-1.5-flash'
+            for m in modelos:
+                if "gemini-1.5-flash" in m.name:
+                    self.model_id = m.name # Pega o nome exato que a API quer
+                    break
+            else:
+                self.model_id = "gemini-1.5-flash" # Fallback
+            
+            print(f"✅ Motor Ativo: {self.model_id}")
+        except Exception as e:
+            print(f"⚠️ Erro ao listar: {e}. Usando padrão.")
+            self.model_id = "gemini-1.5-flash"
 
     def responder(self, mensagem, dados_cliente, historico_formatado):
         prompt_sistema = f"""
-        Você é o Consultor Sênior de Saúde Financeira da RenovaIA. CLIENTE: {dados_cliente}
-        
-        ### ⚖️ REGRAS LEGAIS:
-        - Informe CET de 1.99% a.m. para parcelamentos.
-        - Cite o Art. 52 do CDC sobre amortização de juros.
-        
-        ### 📋 BOLETO:
-        Use blocos de código markdown para o código de barras:
-        ```
-        23790.12345 60000.789012 34567.890123 1 95000000185000
-        ```
+        Você é o Consultor Sênior da RenovaIA. CLIENTE: {dados_cliente}
+        ### REGRAS:
+        - Informe CET de 1.99% a.m. e Art. 52 do CDC.
+        - Use blocos de código para o boleto.
         """
         
         try:
-            # A correção: Unificamos o histórico e a nova mensagem em uma lista limpa de Parts
-            # Isso evita que a API se confunda com formatos de dicionário do Gradio
-            conteudo_atual = types.Content(
-                role="user", 
-                parts=[types.Part(text=mensagem)]
-            )
+            # A API v1 prefere receber apenas o nome sem o prefixo 'models/' se der erro
+            model_name = self.model_id.replace("models/", "")
             
-            # Chamada usando o método generate_content que é mais estável que o chat.send_message em loops
             response = self.client.models.generate_content(
-                model=self.model_id,
+                model=model_name,
                 config=types.GenerateContentConfig(
                     system_instruction=prompt_sistema,
                     temperature=0.2
                 ),
-                contents=historico_formatado + [conteudo_atual]
+                contents=historico_formatado + [types.Content(role="user", parts=[types.Part(text=mensagem)])]
             )
-            
-            if response.text:
-                return response.text
-            else:
-                return "⚠️ A IA não conseguiu gerar uma resposta. Tente reformular."
-
+            return response.text
         except Exception as e:
-            # Esse print aparecerá no console do seu VS Code / Colab para sabermos o motivo real
             print(f"🚨 ERRO NA API GEMINI: {str(e)}")
-            return "⚠️ Erro técnico de conexão. Por favor, tente novamente em alguns segundos."
+            return "⚠️ Erro técnico. Tente novamente em instantes."
