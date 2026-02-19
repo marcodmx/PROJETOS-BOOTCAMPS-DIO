@@ -5,7 +5,7 @@ from engine import AgenteNegociador
 from google.genai import types
 
 agente = AgenteNegociador()
-meu_css = ".gradio-container { background-color: #f7fafc; } .main-header { text-align: center; color: #2c5282; font-weight: bold; }"
+meu_css = ".gradio-container { background-color: #f7fafc; } .main-header { text-align: center; color: #2c5282; }"
 
 def extrair_texto(conteudo):
     if isinstance(conteudo, str): return conteudo
@@ -25,7 +25,7 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
         historico_ia.append(types.Content(role=role_ia, parts=[types.Part(text=texto_limpo)]))
 
     if "🔍 Verificar Ofertas" in mensagem:
-        res = agente.responder("Apresente propostas reais: quitação (Art. 52 CDC) e parcelamento (1.99% CET).", str(cliente), historico_ia)
+        res = agente.responder("Calcule quitação Art. 52 CDC e parcelamento 1.99% CET.", str(cliente), historico_ia)
     else:
         res = agente.responder(mensagem, str(cliente), historico_ia)
     
