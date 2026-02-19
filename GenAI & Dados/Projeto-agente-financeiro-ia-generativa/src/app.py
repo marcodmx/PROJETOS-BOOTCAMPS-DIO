@@ -1,7 +1,6 @@
 import gradio as gr
 from database import buscar_cliente_por_cpf
 from engine import AgenteNegociador
-# ESSA LINHA ABAIXO É A QUE FALTAVA:
 from google.genai import types 
 
 agente = AgenteNegociador()
@@ -10,49 +9,67 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
     cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
     cliente = buscar_cliente_por_cpf(cpf_limpo)
 
-    # Agora o 'types' será reconhecido aqui:
+    # 🧠 Memória com Blindagem contra objetos complexos do Gradio
     historico_ia = []
     for turno in historico:
         role_ia = "user" if turno['role'] == 'user' else "model"
-        # Criando o objeto que o Google exige para não dar erro de validação
-        historico_ia.append(types.Content(role=role_ia, parts=[types.Part(text=turno['content'])]))
+        conteudo = turno['content']
+        
+        # Garante que o texto enviado ao Gemini seja sempre string pura
+        if isinstance(conteudo, list):
+            texto_puro = conteudo[0].get('text', str(conteudo)) if isinstance(conteudo[0], dict) else str(conteudo[0])
+        else:
+            texto_puro = str(conteudo)
+            
+        historico_ia.append(types.Content(role=role_ia, parts=[types.Part(text=texto_puro)]))
 
+    # 🤖 Lógica de Respostas Rápidas com Emojis
     if "Já efetuei o pagamento" in mensagem:
-        res = "✨ **Recebemos sua informação!** Agora é só aguardar a compensação bancária. 🙏"
+        res = "✨ **Recebemos sua informação!** Agora é só aguardar a compensação bancária (até 3 dias úteis). Guarde seu comprovante com carinho. 🙏"
     elif "Encerrar Atendimento" in mensagem:
-        res = "A **RenovaIA** agradece o contato. Até logo! ✨"
+        res = "Ficamos felizes em te atender. A **RenovaIA** está sempre aqui para apoiar sua saúde financeira. Até logo! ✨"
     else:
-        # Chama o motor passando a mensagem, dados e o histórico convertido
         res = agente.responder(mensagem, str(cliente), historico_ia)
     
     historico.append({"role": "user", "content": mensagem})
     historico.append({"role": "assistant", "content": res})
     return historico, ""
 
-# ... restante do código (validar_e_entrar e Blocks) permanece igual ...
 def validar_e_entrar(cpf_com_mascara):
     cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
+    if len(cpf_limpo) != 11:
+        return gr.update(visible=True), gr.update(visible=False), None, "### ⚠️ CPF incompleto."
+        
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     if cliente:
         nome = cliente['nome'].split()[0]
-        hist_inicial = [{"role": "assistant", "content": f"✨ **Olá, {nome}!** Encontrei ótimas ofertas para você hoje. Vamos conferir?"}]
+        hist_inicial = [{"role": "assistant", "content": f"✨ **Olá, {nome}!** Que bom te ver por aqui. Encontrei ótimas oportunidades para cuidarmos da sua saúde financeira hoje. Vamos dar uma olhada?"}]
         return gr.update(visible=False), gr.update(visible=True), hist_inicial, ""
-    return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF inválido."
+    return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não localizado."
 
-with gr.Blocks() as demo:
+# 🎨 CSS Restaurado
+meu_css = ".btn-banco { background: #2b6cb0 !important; color: white !important; font-weight: bold !important; border-radius: 8px !important; }"
+
+with gr.Blocks(title="RenovaIA", css=meu_css) as demo:
     with gr.Column(visible=True) as tela_login:
-        gr.Markdown("# 🏦 RenovaIA")
-        cpf_input = gr.Textbox(label="CPF")
-        btn_verificar = gr.Button("ENTRAR")
+        gr.Markdown("<h1 style='text-align: center; color: #2b6cb0;'>🏦 RenovaIA</h1>")
+        cpf_input = gr.Textbox(label="Informe seu CPF para começar", placeholder="000.000.000-00")
+        btn_verificar = gr.Button("VERIFICAR OFERTAS", elem_classes="btn-banco")
         status_msg = gr.Markdown("")
 
     with gr.Column(visible=False) as tela_chat:
-        chatbot = gr.Chatbot(label="Chat", height=500)
-        txt_msg = gr.Textbox(placeholder="Digite aqui...")
-        btn_send = gr.Button("Enviar")
+        chatbot = gr.Chatbot(label="Consultor RenovaIA", height=500)
+        
+        with gr.Row():
+            txt_msg = gr.Textbox(placeholder="Como posso te ajudar?", show_label=False, scale=8)
+            btn_send = gr.Button("Enviar", variant="primary", scale=2)
+            
+        # 🔘 Botoes de Exemplos Restaurados
+        gr.Examples(examples=["✅ Já efetuei o pagamento", "🚪 Encerrar Atendimento"], inputs=txt_msg)
 
     btn_verificar.click(validar_e_entrar, [cpf_input], [tela_login, tela_chat, chatbot, status_msg])
     btn_send.click(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
+    txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
 
 if __name__ == "__main__":
     demo.launch(share=True)
