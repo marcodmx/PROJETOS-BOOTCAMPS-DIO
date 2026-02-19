@@ -17,10 +17,9 @@ def validar_e_entrar(cpf_com_mascara):
         saudacao = "Bom dia" if 5 <= hora < 12 else "Boa tarde" if 12 <= hora < 18 else "Boa noite"
         nome = cliente['nome'].split()[0]
         
-        # Formato de tupla (None para o usuário, mensagem para o bot) 
-        # Funciona em qualquer versão do Gradio
+        # FORMATO MODERNO: Lista de Dicionários (Obrigatório no Gradio 5+)
         historico_inicial = [
-            (None, f"🏦 **{saudacao}, {nome}! Bem-vindo ao seu Portal de Negociação.**\n\nLocalizei sua pendência de **{cliente.get('produto', 'Crédito')}**. Sou o **RenovaIA** e vou te ajudar a regularizar isso. 💰")
+            {"role": "assistant", "content": f"🏦 **{saudacao}, {nome}! Bem-vindo ao seu Portal de Negociação.**\n\nLocalizei sua pendência de **{cliente.get('produto', 'Crédito')}**. Sou o **RenovaIA** e vou te ajudar a regularizar isso. 💰"}
         ]
         
         return gr.update(visible=False), gr.update(visible=True), historico_inicial, ""
@@ -33,8 +32,9 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
     
     resposta_ia = agente.responder(mensagem, str(cliente))
     
-    # Formato Universal: Lista de Tuplas [ (pergunta, resposta) ]
-    historico.append((mensagem, resposta_ia))
+    # Adicionando ao histórico no formato de dicionário
+    historico.append({"role": "user", "content": mensagem})
+    historico.append({"role": "assistant", "content": resposta_ia})
     
     return historico, ""
 
@@ -78,8 +78,8 @@ with gr.Blocks() as demo:
 
     with gr.Column(visible=False) as tela_chat:
         gr.Markdown("<h2 style='text-align: center; color: #1a365d;'>🏦 Atendimento RenovaIA</h2>")
-        # Removido o parâmetro 'type' para garantir compatibilidade
-        chatbot = gr.Chatbot(label="Chat Seguro", height=500)
+        # Forçamos o type="messages" para o Gradio 5 aceitar os dicionários
+        chatbot = gr.Chatbot(label="Chat Seguro", height=500, type="messages")
         
         with gr.Row():
             txt_msg = gr.Textbox(placeholder="Como posso te ajudar?", show_label=False, scale=8)
@@ -96,4 +96,3 @@ with gr.Blocks() as demo:
 
 if __name__ == "__main__":
     demo.launch(share=True, css=css, js=js_mask, theme=gr.themes.Soft())
-    
