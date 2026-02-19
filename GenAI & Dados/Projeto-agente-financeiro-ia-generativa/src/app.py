@@ -88,3 +88,4 @@ if __name__ == "__main__":
     gr.close_all()
     # CSS injetado no launch para evitar Warnings no Gradio 6
     demo.launch(share=True, inline=False, debug=True, css=meu_css)
+    
