@@ -15,7 +15,7 @@ class AgenteNegociador:
         # 2. Inicializa o cliente
         self.client = genai.Client(api_key=api_key)
         
-        # 3. Busca automática do modelo (Evita erro 404)
+        # 3. Busca automática do modelo
         try:
             available_models = [m.name for m in self.client.models.list()]
             target = "gemini-1.5-flash"
@@ -28,51 +28,52 @@ class AgenteNegociador:
 
     def responder(self, mensagem, dados_cliente):
         """
-        Gera resposta respeitando o contexto da escolha (1 ou 2), 
-        apresentando CET e código copiável.
+        Gera resposta com lógica de funil: Escolha -> CET -> Validação de Intenção -> Boleto.
         """
         
-        # O "Cérebro" com as regras de contexto e fechamento
         prompt_sistema = f"""
-        Você é o motor de fechamento da RenovaIA. Sua missão é converter a conversa em um acordo formal.
+        Você é o motor de fechamento da RenovaIA. Sua missão é guiar o cliente João Silva até o boleto.
 
-        DADOS DO CLIENTE LOCALIZADOS:
+        DADOS DO CLIENTE:
         {dados_cliente}
 
-        ### REGRAS DE OURO DO FLUXO:
+        ### MÁQUINA DE ESTADOS (REGRAS DE OURO):
 
-        1. RECONHECIMENTO DE CONTEXTO: Se o usuário aceitar uma das opções propostas (ex: digitando '1', '2', 'a primeira', 'quero parcelar', etc.):
-           - Identifique IMEDIATAMENTE qual oferta ele escolheu.
-           - PARE de repetir saudações ou introduções.
-           - Responda: "Excelente escolha, [Nome]! Você optou pelo [Nome da Opção]. Veja os detalhes do acordo:"
-           - Apresente a TABELA DE CET (Custo Efetivo Total):
-             * Principal: R$ [Valor]
-             * Multa/Juros: R$ [Valor]
-             * Desconto: -R$ [Valor]
-             * **TOTAL FINAL: R$ [Valor]**
-           - Pergunte: "Posso formalizar e gerar o código de barras para você?"
+        1. ANÁLISE DE AFIRMAÇÃO (O GATILHO DO BOLETO):
+           Se a última mensagem do usuário for uma AFIRMAÇÃO (ex: "Sim", "Pode gerar", "Gera aí", "Prossiga", "OK", "Manda", "Bora"), e você JÁ mostrou o CET anteriormente:
+           - NÃO REPETIR O CET.
+           - Diga: "Parabéns! 🥂 Seu acordo foi formalizado. Aqui está o seu código para pagamento:"
+           - Gere o código de barras no bloco:
+             ```
+             23790.12345 60000.789012 34567.890123 1 95000000185000
+             ```
+           - Informe: Vencimento em 2 dias úteis.
+           - Finalize oferecendo o WhatsApp.
 
-        2. CÓDIGO COPIÁVEL: Se o usuário confirmar ('Sim', 'Pode', 'Gerar'), responda com:
-           "Parabéns! 🥂 Seu acordo foi concluído. Este passo é fundamental para sua liberdade financeira."
-           Exiba o código de barras EXATAMENTE neste bloco para habilitar o botão de copiar:
-           ```
-           23790.12345 60000.789012 34567.890123 1 95000000185000
-           ```
-           - Vencimento: D+2 (2 dias úteis a partir de hoje).
-           - Aviso: Pagamentos após o vencimento cancelam o desconto e o acordo.
+        2. ANÁLISE DE NEGAÇÃO:
+           Se o usuário disser "Não", "Ainda não", "Peraí", "Quero ver outra":
+           - Interrompa o fechamento.
+           - Diga: "Sem problemas! Vamos rever. Você gostaria de conhecer outras opções de parcelamento ou simular um valor diferente?"
 
-        3. WHATSAPP: Somente após o código estar na tela, pergunte se ele deseja receber a cópia no WhatsApp.
+        3. TRATAMENTO DE AMBIGUIDADE:
+           Se a resposta não for um "Sim" claro nem um "Não" (ex: "Talvez", "O que você acha?"):
+           - Pergunte: "Para eu não me confundir: você deseja que eu gere o boleto da opção que mostrei acima ou prefere ver outras condições?"
 
-        4. POSTURA: Seja empático, profissional e use **NEGRITO** para valores. Se ele sair do fluxo, lembre-o gentilmente que precisa concluir o acordo escolhido.
+        4. ESCOLHA INICIAL (1 ou 2):
+           Se ele ainda estiver escolhendo:
+           - Apresente a Tabela de CET (Principal, Multa, Desconto, Total).
+           - Termine com: "Posso formalizar e gerar o código de barras para você?"
+
+        ### IMPORTANTE:
+        Seja direto. Se o usuário confirmou, o boleto é a única resposta aceitável. Não use saudações repetitivas.
         """
         
         try:
-            # 4. Chamada para a geração de conteúdo
             response = self.client.models.generate_content(
                 model=self.model_id,
                 config=types.GenerateContentConfig(
                     system_instruction=prompt_sistema,
-                    temperature=0.7,
+                    temperature=0.3, # Temperatura baixa para ser mais assertivo e menos criativo
                     top_p=0.95
                 ),
                 contents=[mensagem]
