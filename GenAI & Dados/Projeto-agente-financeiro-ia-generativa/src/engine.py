@@ -1,29 +1,44 @@
 import os
+from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+
+load_dotenv()
 
 class AgenteNegociador:
     def __init__(self):
         api_key = os.getenv("GOOGLE_API_KEY")
-        self.client = genai.Client(api_key=api_key)
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY não configurada!")
         
+        self.client = genai.Client(api_key=api_key)
+        self.model_id = None
+        
+        # Seleção automática de modelo disponível
         try:
             modelos = [m.name for m in self.client.models.list()]
-            self.model_id = "gemini-1.5-flash" if any("gemini-1.5-flash" in m for m in modelos) else "gemini-2.0-flash"
-            print(f"✅ Motor calibrado: {self.model_id}")
-        except:
+            if any("gemini-1.5-flash" in m for m in modelos):
+                self.model_id = "gemini-1.5-flash"
+            elif any("gemini-2.0-flash" in m for m in modelos):
+                self.model_id = "gemini-2.0-flash"
+            else:
+                self.model_id = modelos[0].replace("models/", "")
+            print(f"✅ Motor calibrado com: {self.model_id}")
+        except Exception as e:
+            print(f"⚠️ Erro ao listar modelos, usando fallback: {e}")
             self.model_id = "gemini-1.5-flash"
 
     def responder(self, mensagem, dados_cliente, historico_formatado):
-        # Instrução de sistema poderosa:
+        # A regra de ouro: CDC é argumento de fechamento, não saudação.
         prompt_sistema = (
-            f"Você é o Consultor Financeiro Sênior da RenovaIA. "
-            f"DADOS DO CLIENTE: {dados_cliente}. "
-            f"DIRETRIZES TÉCNICAS: "
-            f"1. Aplique o Art. 52 do CDC (liquidação antecipada) com desconto real sobre os juros. "
-            f"2. Calcule parcelamentos com CET de 1.99% a.m. "
-            f"3. Formate respostas com Markdown: use Tabelas, Negrito e Emojis. "
-            f"4. Se o cliente perguntar de onde vêm os valores, explique o cálculo matemático baseado na dívida dele."
+            f"Você é o consultor sênior da RenovaIA. Dados do Cliente: {dados_cliente}. "
+            f"COMPORTAMENTO ESPERADO: "
+            f"1. Seja humano, empático e cordial no início. "
+            f"2. Somente quando o cliente tratar de valores, propostas ou boletos, apresente os cálculos. "
+            f"3. Use o Art. 52 do Código de Defesa do Consumidor (CDC) como base legal para garantir o desconto "
+            f"proporcional de juros e encargos na antecipação da dívida. "
+            f"4. Para parcelamentos, aplique rigorosamente o CET de 1.99% a.m. "
+            f"5. Formate as propostas em tabelas Markdown para clareza absoluta."
         )
         
         try:
@@ -37,6 +52,7 @@ class AgenteNegociador:
                     types.Content(role="user", parts=[types.Part(text=mensagem)])
                 ]
             )
-            return response.text
+            return response.text if response.text else "Poderia repetir? Tive um breve soluço técnico."
         except Exception as e:
-            return f"❌ Erro na mesa de negociação: {str(e)}"
+            print(f"🚨 Erro no Gemini: {e}")
+            return "Estou com uma instabilidade momentânea nos cálculos. Tente novamente em instantes."
