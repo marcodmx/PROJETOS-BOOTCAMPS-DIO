@@ -11,20 +11,18 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
     cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     
-    # Formatação de histórico compatível com o SDK GenAI
+    # 🎯 FORMATO COMPATÍVEL: Convertendo o histórico do Gradio para o GenAI
+    # O histórico do Gradio vem como uma lista de listas [[user, bot], [user, bot]]
     historico_ia = []
-    for turno in historico:
-        role_ia = "user" if turno['role'] == 'user' else "model"
-        # Garante que o conteúdo seja extraído corretamente como string
-        conteudo = turno['content']
-        texto = conteudo[0].get('text', str(conteudo)) if isinstance(conteudo, list) else str(conteudo)
-        historico_ia.append(types.Content(role=role_ia, parts=[types.Part(text=texto)]))
+    for user_msg, bot_msg in historico:
+        historico_ia.append(types.Content(role="user", parts=[types.Part(text=user_msg)]))
+        historico_ia.append(types.Content(role="model", parts=[types.Part(text=bot_msg)]))
 
     # Chamada ao motor
     res = agente.responder(mensagem, str(cliente), historico_ia)
     
-    historico.append({"role": "user", "content": mensagem})
-    historico.append({"role": "assistant", "content": res})
+    # O Gradio espera que você retorne o histórico atualizado
+    historico.append((mensagem, res))
     return historico, ""
 
 def validar_e_entrar(cpf_com_mascara):
@@ -32,8 +30,9 @@ def validar_e_entrar(cpf_com_mascara):
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     if cliente:
         nome = cliente['nome'].split()[0]
-        msg_inicial = [{"role": "assistant", "content": f"Olá {nome}, sou o consultor RenovaIA. Como posso ajudar na sua negociação hoje?"}]
-        return gr.update(visible=False), gr.update(visible=True), msg_inicial, ""
+        msg_inicial = f"Olá {nome}, sou o consultor RenovaIA. Como posso ajudar?"
+        # Retornamos uma tupla (user, bot) para o formato padrão do chatbot
+        return gr.update(visible=False), gr.update(visible=True), [(None, msg_inicial)], ""
     return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não encontrado."
 
 with gr.Blocks() as demo:
@@ -44,7 +43,8 @@ with gr.Blocks() as demo:
         status = gr.Markdown("")
 
     with gr.Column(visible=False) as tela_chat:
-        chatbot = gr.Chatbot(label="Chat de Negociação", height=500, type="messages")
+        # 🚀 REMOVIDO O 'type="messages"' QUE CAUSOU O ERRO
+        chatbot = gr.Chatbot(label="Chat de Negociação", height=500)
         with gr.Row():
             txt_msg = gr.Textbox(placeholder="Sua mensagem...", scale=8, show_label=False)
             btn_send = gr.Button("Enviar", scale=2)
