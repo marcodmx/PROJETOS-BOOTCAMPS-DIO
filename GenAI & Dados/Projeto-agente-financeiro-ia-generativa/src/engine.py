@@ -14,24 +14,33 @@ class AgenteNegociador:
         self.client = genai.Client(api_key=api_key)
         self.model_id = None
         
+        # Lógica de Prioridade: 1.5-flash (Estável) > Outros > Fallback
         try:
-            modelos = [m.name for m in self.client.models.list()]
-            # Preferência pelo 2.0-flash que o seu ambiente já detectou
-            self.model_id = "gemini-2.0-flash" if any("gemini-2.0-flash" in m for m in modelos) else "gemini-1.5-flash"
-            print(f"✅ Motor calibrado com: {self.model_id}")
+            modelos_disponiveis = [m.name for m in self.client.models.list()]
+            
+            # Buscamos o 1.5-flash primeiro por ser mais generoso na cota
+            if any("gemini-1.5-flash" in m for m in modelos_disponiveis):
+                self.model_id = "gemini-1.5-flash"
+            # Se não houver, tentamos o 2.0-flash
+            elif any("gemini-2.0-flash" in m for m in modelos_disponiveis):
+                self.model_id = "gemini-2.0-flash"
+            # Fallback para o primeiro da lista se nenhum dos acima existir
+            else:
+                self.model_id = modelos_disponiveis[0].replace("models/", "")
+                
+            print(f"✅ Motor inteligente: Prioridade 1.5-flash. Selecionado: {self.model_id}")
         except Exception as e:
-            self.model_id = "gemini-2.0-flash"
+            print(f"⚠️ Erro ao consultar modelos, usando fallback fixo: {e}")
+            self.model_id = "gemini-1.5-flash"
 
     def responder(self, mensagem, dados_cliente, historico_formatado):
-        # A lei entra apenas no fechamento, não na saudação.
         prompt_sistema = (
             f"Você é o consultor sênior da RenovaIA. Dados do Cliente: {dados_cliente}. "
-            f"DIRETRIZES DE NEGOCIAÇÃO: "
-            f"1. Seja cordial, humano e empático. Não cite leis na recepção. "
-            f"2. Se o cliente pedir propostas, valores ou boletos, aplique o Artigo 52 do CDC. "
-            f"3. O Art. 52 garante desconto proporcional dos juros para liquidação antecipada. Calcule isso. "
-            f"4. Para parcelamentos, use o CET de 1.99% a.m. "
-            f"5. Formate propostas em tabelas Markdown para clareza."
+            f"COMPORTAMENTO: "
+            f"1. Cordialidade e empatia total. "
+            f"2. Artigo 52 do CDC apenas para fundamentar propostas de quitação. "
+            f"3. CET de 1.99% a.m. para parcelamentos. "
+            f"4. Respostas técnicas em tabelas Markdown."
         )
         
         try:
@@ -45,7 +54,8 @@ class AgenteNegociador:
                     types.Content(role="user", parts=[types.Part(text=mensagem)])
                 ]
             )
-            return response.text if response.text else "Poderia repetir?"
+            return response.text if response.text else "Poderia repetir a pergunta?"
         except Exception as e:
-            print(f"🚨 Erro Gemini: {e}")
-            return "Tive um problema nos cálculos. Pode tentar novamente?"
+            if "429" in str(e):
+                return "⚠️ Cota temporariamente atingida. Por favor, aguarde alguns segundos antes de tentar novamente."
+            return f"🚨 Erro no processamento: {str(e)}"
