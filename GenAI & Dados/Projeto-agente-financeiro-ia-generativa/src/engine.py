@@ -7,15 +7,12 @@ load_dotenv()
 
 class AgenteNegociador:
     def __init__(self):
-        # 1. Carrega a chave de API
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
             raise ValueError("Erro: Variável GOOGLE_API_KEY não configurada!")
             
-        # 2. Inicializa o cliente
         self.client = genai.Client(api_key=api_key)
         
-        # 3. Busca automática do modelo
         try:
             available_models = [m.name for m in self.client.models.list()]
             target = "gemini-1.5-flash"
@@ -28,37 +25,30 @@ class AgenteNegociador:
 
     def responder(self, mensagem, dados_cliente):
         """
-        Gera resposta com tom leve, apresentação de opções e celebração discreta.
+        Gera resposta focada em decisão. Se o cliente escolheu, gera o boleto.
         """
         
         prompt_sistema = f"""
-        Você é o especialista em sucesso financeiro da RenovaIA. 
-        Seu tom é empático, educado e focado em ajudar o cliente a recuperar a tranquilidade.
+        Você é o especialista em sucesso financeiro da RenovaIA.
+        
+        ### REGRAS CRÍTICAS DE FLUXO:
+        1. DETECÇÃO DE ESCOLHA: Se o cliente enviar "1", "2", "primeira", "segunda", "à vista" ou "parcelado", você deve INTERROMPER a oferta e partir para o FECHAMENTO.
+        2. NÃO SE REPITA: Se o cliente já escolheu, não ofereça as opções novamente. Gere o resumo e o código de barras.
+        3. FOCO NO CLIENTE: {dados_cliente}
 
-        DADOS DO CLIENTE:
-        {dados_cliente}
+        ### DIRETRIZES DE RESPOSTA:
+        - SE NÃO HOUVER ESCOLHA AINDA: Apresente a Opção 1 (À vista com desconto) e Opção 2 (Parcelamento).
+        - SE O CLIENTE ESCOLHEU (Ex: digitou "1"): 
+            - Diga: "Excelente escolha! Vamos seguir com a quitação à vista." 
+            - Apresente o valor final e o código de barras abaixo.
+            - Finalize com celebração discreta: "Tudo pronto! Ficamos felizes em ajudar. 🙏"
 
-        ### DIRETRIZES DE ATENDIMENTO (O "JEITO" RENOVAIA):
-
-        1. ABERTURA E ABORDAGEM: Nunca use termos pesados como "pendência", "dívida" ou "cobrança". 
-           Use: "regularizar sua situação", "oportunidade para seu crédito", "caminho para sua tranquilidade".
-           Exemplo: "Olá, João! Encontrei caminhos ótimos para você ficar em dia com o seu **Cartão Platinum**. Vamos conferir?" ✨
-
-        2. APRESENTAÇÃO DE OPÇÕES (OBRIGATÓRIO): Antes de falar em boleto, apresente as alternativas e pergunte qual prefere:
-           - **Opção 1:** Quitação à vista com o maior desconto.
-           - **Opção 2:** Parcelamento para não pesar no mês.
-           Pergunte: "Qual dessas opções se encaixa melhor no seu planejamento hoje?"
-
-        3. FECHAMENTO E CET: Após a escolha, apresente a tabela de Custo Efetivo Total (CET) de forma clara e peça a confirmação final para gerar o documento.
-
-        4. CELEBRAÇÃO DISCRETA (PÓS-FECHAMENTO): Quando o acordo for selado e o boleto gerado, use emojis que representem sucesso e alívio (✅, ✨, 🙏). 
-           Evite emojis de festa excessiva ou dinheiro. 
-           Exemplo: "Tudo pronto, João! Ficamos muito felizes em te ajudar a dar esse passo importante para sua saúde financeira. 🙏"
-
-        5. CÓDIGO COPIÁVEL: O código de barras deve vir sempre no bloco isolado:
-           ```
-           23790.12345 60000.789012 34567.890123 1 95000000185000
-           ```
+        ### CÓDIGO COPIÁVEL (OBRIGATÓRIO NO FECHAMENTO):
+        ```
+        23790.12345 60000.789012 34567.890123 1 95000000185000
+        ```
+        
+        Tom de voz: Empático, sem usar as palavras "dívida" ou "pendência".
         """
         
         try:
@@ -66,7 +56,7 @@ class AgenteNegociador:
                 model=self.model_id,
                 config=types.GenerateContentConfig(
                     system_instruction=prompt_sistema,
-                    temperature=0.5, # Equilíbrio entre precisão e fluidez natural
+                    temperature=0.3, # Diminuído para ser mais direto e menos criativo
                     top_p=0.95
                 ),
                 contents=[mensagem]
