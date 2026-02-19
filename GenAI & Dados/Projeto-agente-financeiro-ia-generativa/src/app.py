@@ -17,9 +17,10 @@ def validar_e_entrar(cpf_com_mascara):
         saudacao = "Bom dia" if 5 <= hora < 12 else "Boa tarde" if 12 <= hora < 18 else "Boa noite"
         nome = cliente['nome'].split()[0]
         
-        # FORMATO MODERNO: Lista de Dicionários (Obrigatório no Gradio 5+)
+        # FORMATO TUPLA: Necessário para Gradio 4.x [ (User, Bot) ]
+        # Usamos None no primeiro elemento para ser a mensagem inicial do Bot
         historico_inicial = [
-            {"role": "assistant", "content": f"🏦 **{saudacao}, {nome}! Bem-vindo ao seu Portal de Negociação.**\n\nLocalizei sua pendência de **{cliente.get('produto', 'Crédito')}**. Sou o **RenovaIA** e vou te ajudar a regularizar isso. 💰"}
+            (None, f"🏦 **{saudacao}, {nome}! Bem-vindo ao seu Portal de Negociação.**\n\nLocalizei sua pendência de **{cliente.get('produto', 'Crédito')}**. Sou o **RenovaIA** e vou te ajudar a regularizar isso. 💰")
         ]
         
         return gr.update(visible=False), gr.update(visible=True), historico_inicial, ""
@@ -32,9 +33,8 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
     
     resposta_ia = agente.responder(mensagem, str(cliente))
     
-    # Adicionando ao histórico no formato de dicionário
-    historico.append({"role": "user", "content": mensagem})
-    historico.append({"role": "assistant", "content": resposta_ia})
+    # Adicionando tupla (Pergunta, Resposta) - Padrão Gradio 4
+    historico.append((mensagem, resposta_ia))
     
     return historico, ""
 
@@ -44,7 +44,7 @@ css = r"""
 .gradio-container { background-color: #f7fafc !important; }
 .cpf-box { background: white; padding: 30px; border-radius: 20px; border-top: 5px solid #2b6cb0; box-shadow: 0 10px 15px rgba(0,0,0,0.1); }
 .cpf-box input { font-size: 28px !important; text-align: center !important; font-weight: bold; color: #1a365d; }
-.btn-banco { background: #2b6cb0 !important; color: white !important; font-weight: bold !important; }
+.btn-banco { background: #2b6cb0 !important; color: white !important; font-weight: bold !important; border: none !important; }
 """
 
 js_mask = r"""
@@ -78,8 +78,8 @@ with gr.Blocks() as demo:
 
     with gr.Column(visible=False) as tela_chat:
         gr.Markdown("<h2 style='text-align: center; color: #1a365d;'>🏦 Atendimento RenovaIA</h2>")
-        # Forçamos o type="messages" para o Gradio 5 aceitar os dicionários
-        chatbot = gr.Chatbot(label="Chat Seguro", height=500, type="messages")
+        # SEM PARÂMETRO 'TYPE' - Compatibilidade máxima
+        chatbot = gr.Chatbot(label="Chat Seguro", height=500)
         
         with gr.Row():
             txt_msg = gr.Textbox(placeholder="Como posso te ajudar?", show_label=False, scale=8)
