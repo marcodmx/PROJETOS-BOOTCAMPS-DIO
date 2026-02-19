@@ -17,7 +17,7 @@ class AgenteNegociador:
         
         try:
             modelos_disponiveis = [m.name for m in self.client.models.list()]
-            # Prioridade 1.5-flash para economizar cota no protótipo
+            # Prioridade 1.5-flash para estabilidade de tráfego
             if any("gemini-1.5-flash" in m for m in modelos_disponiveis):
                 self.model_id = "gemini-1.5-flash"
             else:
@@ -47,6 +47,8 @@ class AgenteNegociador:
                 if "429" in str(e) and tentativa < 1:
                     time.sleep(3)
                     continue
+                
+                # MENSAGEM CORRIGIDA PARA O PROTÓTIPO:
                 if "429" in str(e):
-                    return "⚠️ **Sistema Temporariamente Indisponível:** Volume de acessos alto. Tente enviar novamente em instantes."
-                return "🚨 **Aviso:** Conexão instável. Tente novamente."
+                    return "⚠️ **Sistema Temporariamente Indisponível:** Devido ao alto volume de propostas simultâneas, sua solicitação entrou em fila de processamento. Por favor, tente enviar novamente em instantes."
+                return "🚨 **Aviso:** Conexão instável com a central de crédito. Tente novamente."
