@@ -14,22 +14,18 @@ class AgenteNegociador:
         self.client = genai.Client(api_key=api_key)
         self.model_id = None
         
-        # Seleção automática de modelo disponível
         try:
             modelos = [m.name for m in self.client.models.list()]
             if any("gemini-1.5-flash" in m for m in modelos):
                 self.model_id = "gemini-1.5-flash"
-            elif any("gemini-2.0-flash" in m for m in modelos):
-                self.model_id = "gemini-2.0-flash"
             else:
-                self.model_id = modelos[0].replace("models/", "")
+                self.model_id = "gemini-2.0-flash"
             print(f"✅ Motor calibrado com: {self.model_id}")
         except Exception as e:
-            print(f"⚠️ Erro ao listar modelos, usando fallback: {e}")
             self.model_id = "gemini-1.5-flash"
 
     def responder(self, mensagem, dados_cliente, historico_formatado):
-        # A regra de ouro: CDC é argumento de fechamento, não saudação.
+        # CDC apenas como argumento de fechamento técnico
         prompt_sistema = (
             f"Você é o consultor sênior da RenovaIA. Dados do Cliente: {dados_cliente}. "
             f"COMPORTAMENTO ESPERADO: "
@@ -52,7 +48,6 @@ class AgenteNegociador:
                     types.Content(role="user", parts=[types.Part(text=mensagem)])
                 ]
             )
-            return response.text if response.text else "Poderia repetir? Tive um breve soluço técnico."
+            return response.text if response.text else "Poderia repetir?"
         except Exception as e:
-            print(f"🚨 Erro no Gemini: {e}")
-            return "Estou com uma instabilidade momentânea nos cálculos. Tente novamente em instantes."
+            return "Estou com uma instabilidade momentânea. Tente novamente."
