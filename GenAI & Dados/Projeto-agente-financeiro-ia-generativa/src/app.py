@@ -1,6 +1,8 @@
 import gradio as gr
 from database import buscar_cliente_por_cpf
 from engine import AgenteNegociador
+# ESSA LINHA ABAIXO É A QUE FALTAVA:
+from google.genai import types 
 
 agente = AgenteNegociador()
 
@@ -8,25 +10,26 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
     cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
     cliente = buscar_cliente_por_cpf(cpf_limpo)
 
-    # Prepara o histórico para o Gemini (apenas o texto puro de cada turno)
+    # Agora o 'types' será reconhecido aqui:
     historico_ia = []
     for turno in historico:
         role_ia = "user" if turno['role'] == 'user' else "model"
+        # Criando o objeto que o Google exige para não dar erro de validação
         historico_ia.append(types.Content(role=role_ia, parts=[types.Part(text=turno['content'])]))
 
-    # Respostas rápidas
     if "Já efetuei o pagamento" in mensagem:
-        res = "✨ **Recebemos sua informação!** Agora é só aguardar a compensação. 🙏"
+        res = "✨ **Recebemos sua informação!** Agora é só aguardar a compensação bancária. 🙏"
     elif "Encerrar Atendimento" in mensagem:
-        res = "A **RenovaIA** agradece. Até logo! ✨"
+        res = "A **RenovaIA** agradece o contato. Até logo! ✨"
     else:
-        # Passa a mensagem, os dados e o histórico convertido
+        # Chama o motor passando a mensagem, dados e o histórico convertido
         res = agente.responder(mensagem, str(cliente), historico_ia)
     
     historico.append({"role": "user", "content": mensagem})
     historico.append({"role": "assistant", "content": res})
     return historico, ""
 
+# ... restante do código (validar_e_entrar e Blocks) permanece igual ...
 def validar_e_entrar(cpf_com_mascara):
     cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
     cliente = buscar_cliente_por_cpf(cpf_limpo)
@@ -44,7 +47,7 @@ with gr.Blocks() as demo:
         status_msg = gr.Markdown("")
 
     with gr.Column(visible=False) as tela_chat:
-        chatbot = gr.Chatbot(label="Chat", height=500) # SEM o type="messages"
+        chatbot = gr.Chatbot(label="Chat", height=500)
         txt_msg = gr.Textbox(placeholder="Digite aqui...")
         btn_send = gr.Button("Enviar")
 
