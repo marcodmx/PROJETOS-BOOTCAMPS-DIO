@@ -17,7 +17,7 @@ class AgenteNegociador:
         
         try:
             modelos_disponiveis = [m.name for m in self.client.models.list()]
-            # Prioridade 1.5-flash para estabilidade de tráfego
+            # Prioriza 1.5-flash por ser o cavalo de batalha da Free Tier
             if any("gemini-1.5-flash" in m for m in modelos_disponiveis):
                 self.model_id = "gemini-1.5-flash"
             else:
@@ -29,10 +29,10 @@ class AgenteNegociador:
     def responder(self, mensagem, dados_cliente, historico_formatado):
         prompt_sistema = (
             f"Você é o consultor sênior da RenovaIA. Dados: {dados_cliente}. "
-            "1. Seja cordial e empático. "
-            "2. Use o Artigo 52 do CDC apenas para fundamentar propostas de quitação. "
-            "3. Aplique desconto de juros para antecipação e CET de 1.99% a.m. para parcelas. "
-            "4. Responda com tabelas Markdown."
+            "1. Cordialidade e empatia. "
+            "2. Use Art. 52 do CDC apenas para fundamentar propostas. "
+            "3. Aplique desconto de juros para antecipação e CET de 1.99% a.m. "
+            "4. Responda em tabelas Markdown."
         )
         
         for tentativa in range(2):
@@ -42,13 +42,22 @@ class AgenteNegociador:
                     config=types.GenerateContentConfig(system_instruction=prompt_sistema, temperature=0.2),
                     contents=historico_formatado + [types.Content(role="user", parts=[types.Part(text=mensagem)])]
                 )
-                return response.text if response.text else "Poderia repetir?"
-            except Exception as e:
-                if "429" in str(e) and tentativa < 1:
-                    time.sleep(3)
-                    continue
+                return response.text if response.text else "Poderia reformular sua pergunta?"
                 
-                # MENSAGEM CORRIGIDA PARA O PROTÓTIPO:
-                if "429" in str(e):
+            except Exception as e:
+                erro_str = str(e).upper()
+                
+                # Tratamento para excesso de tráfego/cota
+                if "429" in erro_str or "RESOURCE_EXHAUSTED" in erro_str:
+                    if tentativa < 1:
+                        time.sleep(3)
+                        continue
                     return "⚠️ **Sistema Temporariamente Indisponível:** Devido ao alto volume de propostas simultâneas, sua solicitação entrou em fila de processamento. Por favor, tente enviar novamente em instantes."
-                return "🚨 **Aviso:** Conexão instável com a central de crédito. Tente novamente."
+                
+                # Tratamento para erro de autenticação (Chave errada)
+                if "API_KEY" in erro_str or "403" in erro_str:
+                    return "🚨 **Erro de Autenticação:** Falha na conexão segura com a central de crédito. Verifique suas credenciais."
+
+                # Tratamento para qualquer outro erro técnico
+                print(f"DEBUG ERRO REAL: {e}")
+                return f"🚨 **Instabilidade Técnica:** Ocorreu um erro inesperado no processamento. (Código: {erro_str[:15]})"
