@@ -8,23 +8,23 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
     cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
     cliente = buscar_cliente_por_cpf(cpf_limpo)
 
-    # 1. Construir a memória para a IA (Convertendo o histórico do Gradio)
+    # 1. Construir a memória para a IA (Trabalhando com o formato que seu Gradio envia)
     memoria_ia = []
     for turno in historico:
-        if turno['role'] == 'user':
-            memoria_ia.append({"role": "user", "parts": [{"text": turno['content']}]})
-        else:
-            memoria_ia.append({"role": "model", "parts": [{"text": turno['content']}]})
+        # No seu Gradio, o histórico vem como lista de dicionários
+        role = "user" if turno['role'] == 'user' else "model"
+        memoria_ia.append({"role": role, "parts": [{"text": turno['content']}]})
     
     # Adicionar a mensagem atual à memória
     memoria_ia.append({"role": "user", "parts": [{"text": mensagem}]})
 
-    # 2. Obter resposta da IA com base na memória
+    # 2. Obter resposta da IA
     if "Já efetuei o pagamento" in mensagem:
-        res = "✨ **Recebemos sua informação!** Aguarde a compensação bancária (até 3 dias úteis). 🙏"
+        res = "✨ **Recebemos sua informação!** Agora é só aguardar a compensação bancária (até 3 dias úteis). Guarde seu comprovante com carinho. 🙏"
     elif "Encerrar Atendimento" in mensagem:
-        res = "Ficamos felizes em te atender. A **RenovaIA** está sempre aqui. Até logo! ✨"
+        res = "Ficamos felizes em te atender. A **RenovaIA** está sempre aqui para apoiar sua saúde financeira. Até logo! ✨"
     else:
+        # Passa a memória completa para o motor
         res = agente.responder(memoria_ia, str(cliente))
     
     # 3. Atualizar o histórico da interface
@@ -38,7 +38,7 @@ def validar_e_entrar(cpf_com_mascara):
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     if cliente:
         nome = cliente['nome'].split()[0]
-        hist_inicial = [{"role": "assistant", "content": f"✨ **Olá, {nome}!** Encontrei ótimas oportunidades para sua saúde financeira hoje. Vamos conferir?"}]
+        hist_inicial = [{"role": "assistant", "content": f"✨ **Olá, {nome}!** Que bom te ver por aqui. Encontrei ótimas oportunidades para cuidarmos da sua saúde financeira hoje. Vamos dar uma olhada?"}]
         return gr.update(visible=False), gr.update(visible=True), hist_inicial, ""
     return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não localizado."
 
@@ -50,7 +50,8 @@ with gr.Blocks(title="RenovaIA") as demo:
         status_msg = gr.Markdown("")
 
     with gr.Column(visible=False) as tela_chat:
-        chatbot = gr.Chatbot(label="Consultor", height=500, type="messages")
+        # AQUI ESTAVA O ERRO: Removido o type="messages"
+        chatbot = gr.Chatbot(label="Consultor", height=500)
         with gr.Row():
             txt_msg = gr.Textbox(placeholder="Como posso ajudar?", show_label=False, scale=8)
             btn_send = gr.Button("Enviar", scale=2)
