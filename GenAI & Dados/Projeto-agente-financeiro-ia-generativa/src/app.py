@@ -4,33 +4,39 @@ from database import buscar_cliente_por_cpf
 from engine import AgenteNegociador
 from google.genai import types
 
+# Inicializa o motor
 agente = AgenteNegociador()
+
+# CSS Customizado para o Portal
+meu_css = """
+.gradio-container { background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+.main-header { text-align: center; color: #1a365d; }
+.login-area { max-width: 400px; margin: 0 auto; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+"""
 
 def responder_chat(mensagem, historico, cpf_com_mascara):
     cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
     cliente = buscar_cliente_por_cpf(cpf_limpo)
-    nome_cliente = cliente['nome'].split()[0] if cliente else "Cliente"
     
-    # 1. Converte histórico do Gradio (Dicionários) para o Gemini (Parts)
+    # Converte histórico para o formato do SDK Gemini
     historico_ia = []
     for msg in historico:
         role_ia = "user" if msg['role'] == 'user' else "model"
         historico_ia.append(types.Content(role=role_ia, parts=[types.Part(text=msg['content'])]))
 
-    # 2. Gatilhos de Ações Rápidas (Os botões que você gosta)
+    # Lógica de Botões/Ações Rápidas
     if "🔍 Verificar Ofertas" in mensagem:
-        prompt_especifico = "O cliente clicou em verificar ofertas. Apresente as opções de parcelamento com CET de 1.99% e mencione o Art. 52 do CDC."
-        res = agente.responder(prompt_especifico, str(cliente), historico_ia)
+        res = agente.responder("O cliente solicitou ver as ofertas disponíveis. Liste as opções conforme as regras de CET.", str(cliente), historico_ia)
     elif "✅ Já efetuei o pagamento" in mensagem:
-        res = "✍️ **Confirmado!** Recebemos seu aviso de pagamento. O prazo para baixa no sistema e nos órgãos de proteção ao crédito é de até 3 dias úteis. 🙌"
+        res = "✍️ **Aviso recebido!** Por favor, guarde seu comprovante. O prazo de compensação bancária é de até 72h úteis. Assim que compensado, seu nome será removido dos cadastros restritivos em até 5 dias úteis."
     elif "🚪 Encerrar Atendimento" in mensagem:
-        res = f"Foi um prazer te ajudar, {nome_cliente}! ✅ **Por favor, digite uma nota de 1 a 10** para o meu atendimento. A RenovaIA agradece!"
+        res = "A RenovaIA agradece seu contato. Esperamos ter ajudado na sua jornada financeira. Até logo! 👋"
     elif "❓ Ajuda" in mensagem:
-        res = "🆘 **Suporte RenovaIA:** SAC 0800 777 0000 | Atendimento das 08h às 20h."
+        res = "🆘 **Central de Ajuda:** Se você tiver dúvidas técnicas, ligue para 0800-RENOVA. Para propostas, pode falar diretamente comigo aqui!"
     else:
         res = agente.responder(mensagem, str(cliente), historico_ia)
     
-    # 3. Formato de dicionário que seu Gradio EXIGE
+    # Atualiza o histórico no formato exigido pelo Gradio (Dicionários)
     historico.append({"role": "user", "content": mensagem})
     historico.append({"role": "assistant", "content": res})
     
@@ -41,33 +47,26 @@ def validar_e_entrar(cpf_com_mascara):
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     if cliente:
         nome = cliente['nome'].split()[0]
-        msg_inicial = [{"role": "assistant", "content": f"✨ **Olá, {nome}!** Bem-vindo à RenovaIA. Sou seu consultor especialista em saúde financeira. Vamos regularizar sua situação hoje? 🤝"}]
+        msg_inicial = [{"role": "assistant", "content": f"✨ **Olá, {nome}!** Sou seu consultor RenovaIA. Analisei seu perfil e tenho propostas com base no Art. 52 do CDC. Como posso te ajudar hoje?"}]
         return gr.update(visible=False), gr.update(visible=True), msg_inicial, ""
-    return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não localizado no sistema."
+    return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não cadastrado ou inválido."
 
-# CSS para deixar o visual mais "Premium"
-meu_css = """
-.gradio-container { background-color: #f7fafc; }
-.main-header { text-align: center; color: #2b6cb0; margin-bottom: 20px; }
-"""
-
-with gr.Blocks(title="RenovaIA - Negociação Especializada", css=meu_css) as demo:
-    with gr.Column(visible=True) as tela_login:
+with gr.Blocks(title="RenovaIA - Portal de Negociação") as demo:
+    with gr.Column(visible=True, elem_id="login-area") as tela_login:
         gr.Markdown("# 🏦 RenovaIA", elem_classes="main-header")
-        gr.Markdown("### Acesse seu portal de negociação segura")
-        cpf_input = gr.Textbox(label="Seu CPF", placeholder="000.000.000-00")
-        btn_entrar = gr.Button("ENTRAR NO PORTAL", variant="primary")
+        gr.Markdown("### Identifique-se para acessar suas ofertas exclusivas")
+        cpf_input = gr.Textbox(label="CPF", placeholder="000.000.000-00")
+        btn_entrar = gr.Button("ACESSAR MINHAS OFERTAS", variant="primary")
         status = gr.Markdown("")
 
     with gr.Column(visible=False) as tela_chat:
-        gr.Markdown("## 🤝 Central de Negociação")
-        chatbot = gr.Chatbot(label="Consultor RenovaIA", height=550)
+        gr.Markdown("## 🤝 Mesa de Negociação Digital")
+        chatbot = gr.Chatbot(label="Atendente RenovaIA", height=500)
         
         with gr.Row():
-            txt_msg = gr.Textbox(placeholder="Digite sua proposta ou dúvida...", scale=8, show_label=False)
+            txt_msg = gr.Textbox(placeholder="Digite sua mensagem...", scale=8, show_label=False)
             btn_send = gr.Button("Enviar", variant="primary", scale=2)
         
-        # OS BOTÕES TOP VOLTARAM AQUI:
         gr.Examples(
             examples=["🔍 Verificar Ofertas", "✅ Já efetuei o pagamento", "🚪 Encerrar Atendimento", "❓ Ajuda"], 
             inputs=txt_msg,
@@ -80,5 +79,5 @@ with gr.Blocks(title="RenovaIA - Negociação Especializada", css=meu_css) as de
 
 if __name__ == "__main__":
     gr.close_all()
-    # share=True para o link externo, inline=False para não poluir o notebook
-    demo.launch(share=True, inline=False, debug=True)
+    # No Gradio 6.0, o CSS deve ser passado aqui para evitar Warnings
+    demo.launch(share=True, inline=False, debug=True, css=meu_css)
