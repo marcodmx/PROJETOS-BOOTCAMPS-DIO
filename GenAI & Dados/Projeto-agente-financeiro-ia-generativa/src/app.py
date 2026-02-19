@@ -9,14 +9,15 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     
     if "Já efetuei o pagamento" in mensagem:
-        res = "✨ **Recebemos sua informação!** Agora é só aguardar a compensação bancária (até 3 dias úteis). Guarde seu comprovante com carinho. 🙏"
+        res = "✨ **Recebemos sua informação!** Agora é só aguardar a compensação bancária. Guarde seu comprovante com carinho. 🙏"
     elif "Encerrar Atendimento" in mensagem:
         res = "Ficamos felizes em te atender. A **RenovaIA** está sempre aqui para apoiar sua saúde financeira. Até logo! ✨"
     else:
         res = agente.responder(mensagem, str(cliente))
     
-    # Formato Universal: Lista de listas [pergunta, resposta]
-    historico.append([mensagem, res])
+    # FORMATAÇÃO EXATA PEDIDA PELO ERRO: Dicionários
+    historico.append({"role": "user", "content": mensagem})
+    historico.append({"role": "assistant", "content": res})
     return historico, ""
 
 def validar_e_entrar(cpf_com_mascara):
@@ -27,27 +28,27 @@ def validar_e_entrar(cpf_com_mascara):
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     if cliente:
         nome = cliente['nome'].split()[0]
-        # Mensagem inicial como a primeira 'resposta' do bot (None para o usuário)
-        hist_inicial = [[None, f"✨ **Olá, {nome}!** Que bom te ver por aqui. Encontrei ótimas oportunidades para cuidarmos da sua saúde financeira hoje. Vamos dar uma olhada?"]]
+        # FORMATAÇÃO EXATA PEDIDA PELO ERRO: Dicionários para a saudação inicial
+        hist_inicial = [{"role": "assistant", "content": f"✨ **Olá, {nome}!** Que bom te ver por aqui. Encontrei ótimas oportunidades para cuidarmos da sua saúde financeira hoje. Vamos dar uma olhada?"}]
         return gr.update(visible=False), gr.update(visible=True), hist_inicial, ""
     return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não localizado."
 
-# CSS simples e direto
-meu_css = ".btn-banco { background: #2b6cb0 !important; color: white !important; font-weight: bold !important; }"
+meu_css = ".btn-banco { background: #2b6cb0 !important; color: white !important; font-weight: bold !important; border-radius: 8px !important; }"
 
-with gr.Blocks(title="RenovaIA") as demo:
+with gr.Blocks(title="RenovaIA - Consultoria Financeira") as demo:
     with gr.Column(visible=True) as tela_login:
         gr.Markdown("<h1 style='text-align: center; color: #2b6cb0;'>🏦 RenovaIA</h1>")
-        cpf_input = gr.Textbox(label="CPF", placeholder="000.000.000-00")
+        cpf_input = gr.Textbox(label="Informe seu CPF para começar", placeholder="000.000.000-00")
         btn_verificar = gr.Button("VERIFICAR OFERTAS", elem_classes="btn-banco")
         status_msg = gr.Markdown("")
 
     with gr.Column(visible=False) as tela_chat:
-        # REMOVIDO o parâmetro 'type' que estava quebrando
-        chatbot = gr.Chatbot(label="Atendimento", height=500)
+        # AQUI FOI MEU ERRO PRINCIPAL: SEM o parâmetro type='messages'
+        chatbot = gr.Chatbot(label="Consultor RenovaIA", height=500)
+        
         with gr.Row():
-            txt_msg = gr.Textbox(placeholder="Como posso ajudar?", show_label=False, scale=8)
-            btn_send = gr.Button("Enviar", scale=2)
+            txt_msg = gr.Textbox(placeholder="Como posso te ajudar?", show_label=False, scale=8)
+            btn_send = gr.Button("Enviar", variant="primary", scale=2)
             
         gr.Examples(examples=["✅ Já efetuei o pagamento", "🚪 Encerrar Atendimento"], inputs=txt_msg)
 
@@ -56,5 +57,4 @@ with gr.Blocks(title="RenovaIA") as demo:
     txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
 
 if __name__ == "__main__":
-    # Mantendo share=True para o Colab
     demo.launch(css=meu_css, share=True)
