@@ -54,5 +54,17 @@ with gr.Blocks() as demo:
     txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
 
 if __name__ == "__main__":
+    import os
+    
+    # 1. Garante limpeza total de portas
     gr.close_all()
-    demo.launch(share=True, debug=True)
+    
+    print("🚀 Servidor subindo...")
+    
+    # 2. Configurações otimizadas para o Colab
+    demo.launch(
+        share=True,      # Gera o link público (obrigatório no Colab)
+        inline=True,     # Tenta mostrar o chat DENTRO do Colab (Plano B)
+        debug=True,      # Mostra erros se o chat travar
+        show_error=True  # Exibe erros da API na tela do chat
+    )
