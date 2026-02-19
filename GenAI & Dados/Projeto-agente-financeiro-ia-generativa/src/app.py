@@ -17,9 +17,10 @@ def validar_e_entrar(cpf_com_mascara):
         saudacao = "Bom dia" if 5 <= hora < 12 else "Boa tarde" if 12 <= hora < 18 else "Boa noite"
         nome = cliente['nome'].split()[0]
         
-        # Saudação com identidade bancária dentro do chat
+        # Formato de tupla (None para o usuário, mensagem para o bot) 
+        # Funciona em qualquer versão do Gradio
         historico_inicial = [
-            {"role": "assistant", "content": f"🏦 **{saudacao}, {nome}! Bem-vindo ao seu Portal de Negociação.**\n\nLocalizei sua pendência de **{cliente.get('produto', 'Crédito')}**. Sou o **RenovaIA** e vou te ajudar a regularizar isso com as melhores condições do mercado. 💰\n\nComo posso te ajudar agora?"}
+            (None, f"🏦 **{saudacao}, {nome}! Bem-vindo ao seu Portal de Negociação.**\n\nLocalizei sua pendência de **{cliente.get('produto', 'Crédito')}**. Sou o **RenovaIA** e vou te ajudar a regularizar isso. 💰")
         ]
         
         return gr.update(visible=False), gr.update(visible=True), historico_inicial, ""
@@ -29,21 +30,21 @@ def validar_e_entrar(cpf_com_mascara):
 def responder_chat(mensagem, historico, cpf_com_mascara):
     cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
     cliente = buscar_cliente_por_cpf(cpf_limpo)
+    
     resposta_ia = agente.responder(mensagem, str(cliente))
     
-    historico.append({"role": "user", "content": mensagem})
-    historico.append({"role": "assistant", "content": resposta_ia})
+    # Formato Universal: Lista de Tuplas [ (pergunta, resposta) ]
+    historico.append((mensagem, resposta_ia))
+    
     return historico, ""
 
-# CSS Robusto
 css = r"""
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
 * { font-family: 'Inter', sans-serif !important; }
 .gradio-container { background-color: #f7fafc !important; }
-.cpf-box { background: white; padding: 30px; border-radius: 20px; border-top: 5px solid #2b6cb0; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+.cpf-box { background: white; padding: 30px; border-radius: 20px; border-top: 5px solid #2b6cb0; box-shadow: 0 10px 15px rgba(0,0,0,0.1); }
 .cpf-box input { font-size: 28px !important; text-align: center !important; font-weight: bold; color: #1a365d; }
-.btn-banco { background: #2b6cb0 !important; color: white !important; font-weight: bold !important; font-size: 16px !important; }
-.center-md { text-align: center; display: block; width: 100%; }
+.btn-banco { background: #2b6cb0 !important; color: white !important; font-weight: bold !important; }
 """
 
 js_mask = r"""
@@ -71,16 +72,17 @@ with gr.Blocks() as demo:
         gr.Markdown("<p style='text-align: center;'>Acesse seu painel de negociação seguro</p>")
         
         with gr.Column(elem_classes="cpf-box"):
-            cpf_input = gr.Textbox(label="Informe seu CPF para continuar", placeholder="000.000.000-00", elem_id="cpf_input")
+            cpf_input = gr.Textbox(label="Informe seu CPF", placeholder="000.000.000-00", elem_id="cpf_input")
             btn_verificar = gr.Button("VERIFICAR MINHAS OFERTAS 📈", variant="primary", elem_classes="btn-banco")
-            status_msg = gr.Markdown(elem_classes="center-md")
+            status_msg = gr.Markdown("")
 
     with gr.Column(visible=False) as tela_chat:
         gr.Markdown("<h2 style='text-align: center; color: #1a365d;'>🏦 Atendimento RenovaIA</h2>")
-        chatbot = gr.Chatbot(label="Chat Seguro", type="messages", height=550)
+        # Removido o parâmetro 'type' para garantir compatibilidade
+        chatbot = gr.Chatbot(label="Chat Seguro", height=500)
         
         with gr.Row():
-            txt_msg = gr.Textbox(placeholder="Digite sua dúvida aqui...", show_label=False, scale=8)
+            txt_msg = gr.Textbox(placeholder="Como posso te ajudar?", show_label=False, scale=8)
             btn_send = gr.Button("Enviar 🚀", variant="primary", scale=2, elem_classes="btn-banco")
         
         gr.Examples(
@@ -93,10 +95,5 @@ with gr.Blocks() as demo:
     txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
 
 if __name__ == "__main__":
-    # CSS, JS e THEME movidos para o launch para eliminar o UserWarning
-    demo.launch(
-        share=True,
-        css=css,
-        js=js_mask,
-        theme=gr.themes.Soft()
-    )
+    demo.launch(share=True, css=css, js=js_mask, theme=gr.themes.Soft())
+    
