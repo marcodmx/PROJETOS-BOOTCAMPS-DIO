@@ -4,25 +4,25 @@ from database import buscar_cliente_por_cpf
 from engine import AgenteNegociador
 from google.genai import types
 
-# Inicializa o motor com a técnica de consulta
 agente = AgenteNegociador()
 
 def responder_chat(mensagem, historico, cpf_com_mascara):
     cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     
-    # 🎯 FORMATO COMPATÍVEL: Convertendo o histórico do Gradio para o GenAI
-    # O histórico do Gradio vem como uma lista de listas [[user, bot], [user, bot]]
+    # Formatando para o motor Gemini (SDK espera 'role' e 'parts')
     historico_ia = []
-    for user_msg, bot_msg in historico:
-        historico_ia.append(types.Content(role="user", parts=[types.Part(text=user_msg)]))
-        historico_ia.append(types.Content(role="model", parts=[types.Part(text=bot_msg)]))
+    for msg in historico:
+        role_ia = "user" if msg['role'] == 'user' else "model"
+        historico_ia.append(types.Content(role=role_ia, parts=[types.Part(text=msg['content'])]))
 
-    # Chamada ao motor
+    # Chama o motor
     res = agente.responder(mensagem, str(cliente), historico_ia)
     
-    # O Gradio espera que você retorne o histórico atualizado
-    historico.append((mensagem, res))
+    # Formato de dicionário EXIGIDO pelo seu erro do Gradio
+    historico.append({"role": "user", "content": mensagem})
+    historico.append({"role": "assistant", "content": res})
+    
     return historico, ""
 
 def validar_e_entrar(cpf_com_mascara):
@@ -30,12 +30,12 @@ def validar_e_entrar(cpf_com_mascara):
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     if cliente:
         nome = cliente['nome'].split()[0]
-        msg_inicial = f"Olá {nome}, sou o consultor RenovaIA. Como posso ajudar?"
-        # Retornamos uma tupla (user, bot) para o formato padrão do chatbot
-        return gr.update(visible=False), gr.update(visible=True), [(None, msg_inicial)], ""
+        # Mensagem inicial no formato de dicionário
+        msg_inicial = [{"role": "assistant", "content": f"Olá {nome}, sou o consultor RenovaIA. Como posso ajudar?"}]
+        return gr.update(visible=False), gr.update(visible=True), msg_inicial, ""
     return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não encontrado."
 
-with gr.Blocks() as demo:
+with gr.Blocks(title="RenovaIA") as demo:
     with gr.Column(visible=True) as tela_login:
         gr.Markdown("# 🏦 RenovaIA")
         cpf_input = gr.Textbox(label="Digite seu CPF", placeholder="00000000000")
@@ -43,8 +43,7 @@ with gr.Blocks() as demo:
         status = gr.Markdown("")
 
     with gr.Column(visible=False) as tela_chat:
-        # 🚀 REMOVIDO O 'type="messages"' QUE CAUSOU O ERRO
-        chatbot = gr.Chatbot(label="Chat de Negociação", height=500)
+        chatbot = gr.Chatbot(label="Atendimento", height=500)
         with gr.Row():
             txt_msg = gr.Textbox(placeholder="Sua mensagem...", scale=8, show_label=False)
             btn_send = gr.Button("Enviar", scale=2)
@@ -54,17 +53,7 @@ with gr.Blocks() as demo:
     txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
 
 if __name__ == "__main__":
-    import os
-    
-    # 1. Garante limpeza total de portas
     gr.close_all()
-    
-    print("🚀 Servidor subindo...")
-    
-    # 2. Configurações otimizadas para o Colab
-    demo.launch(
-        share=True,      # Gera o link público (obrigatório no Colab)
-        inline=True,     # Tenta mostrar o chat DENTRO do Colab (Plano B)
-        debug=True,      # Mostra erros se o chat travar
-        show_error=True  # Exibe erros da API na tela do chat
-    )
+    # inline=False remove a interface de dentro do notebook
+    # debug=True mantém os logs de diagnóstico ativos
+    demo.launch(share=True, inline=False, debug=True)
