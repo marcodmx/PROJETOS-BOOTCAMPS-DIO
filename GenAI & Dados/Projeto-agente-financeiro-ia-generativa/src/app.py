@@ -1,87 +1,63 @@
-import gradio as gr
-from database import buscar_cliente_por_cpf
-from engine import AgenteNegociador
-from google.genai import types 
+import os
+from dotenv import load_dotenv
+from google import genai
+from google.genai import types
 
-# Inicializa o motor
-agente = AgenteNegociador()
+load_dotenv()
 
-def responder_chat(mensagem, historico, cpf_com_mascara):
-    cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
-    cliente = buscar_cliente_por_cpf(cpf_limpo)
-    nome_cliente = cliente['nome'].split()[0] if cliente else "Cliente"
-
-    # 1. Sanitização do histórico para a API do Gemini
-    historico_ia = []
-    for turno in historico:
-        role_ia = "user" if turno['role'] == 'user' else "model"
-        conteudo = turno['content']
-        texto = conteudo[0].get('text', str(conteudo)) if isinstance(conteudo, list) else str(conteudo)
-        historico_ia.append(types.Content(role=role_ia, parts=[types.Part(text=texto)]))
-
-    # 2. Lógica de NPS Condicional
-    if historico:
-        ultima_resposta = str(historico[-1]['content']).lower()
-        if "digite uma nota de 1 a 10" in ultima_resposta:
-            if mensagem.isdigit() and 1 <= int(mensagem) <= 10:
-                res = f"🌟 **Nota {mensagem} registrada!** Obrigado pelo feedback, {nome_cliente}! ✨"
-                historico.append({"role": "user", "content": f"Nota: {mensagem}"})
-                historico.append({"role": "assistant", "content": res})
-                return historico, ""
-
-    # 3. Comandos de Botões e Atalhos
-    if "🔍 Verificar Ofertas" in mensagem:
-        res = agente.responder("Quais ofertas você tem para mim?", str(cliente), historico_ia)
-    elif "✅ Já efetuei o pagamento" in mensagem:
-        res = "✍️ **Confirmado!** Recebemos seu aviso. O prazo para compensação é de até 3 dias úteis. 🙌"
-    elif "🚪 Encerrar Atendimento" in mensagem:
-        res = f"Foi um prazer ajudar, {nome_cliente}! ✅ **Por favor, digite uma nota de 1 a 10** para meu atendimento. 👇"
-    elif "❓ Ajuda" in mensagem:
-        res = "🆘 **Suporte RenovaIA:**\n- Clique em 'Verificar Ofertas' para ver sua dívida.\n- Use o chat para negociar prazos.\n- SAC: 0800 777 0000."
-    else:
-        res = agente.responder(mensagem, str(cliente), historico_ia)
-    
-    historico.append({"role": "user", "content": mensagem})
-    historico.append({"role": "assistant", "content": res})
-    return historico, ""
-
-def validar_e_entrar(cpf_com_mascara):
-    cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
-    cliente = buscar_cliente_por_cpf(cpf_limpo)
-    if cliente:
-        nome = cliente['nome'].split()[0]
-        msg = [{"role": "assistant", "content": f"✨ **Olá, {nome}!** Sou seu consultor RenovaIA. Vamos regularizar sua situação financeira hoje? 🤝"}]
-        return gr.update(visible=False), gr.update(visible=True), msg, ""
-    return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não localizado."
-
-# Configuração Visual
-with gr.Blocks(title="RenovaIA") as demo:
-    with gr.Column(visible=True) as tela_login:
-        gr.Markdown("<h1 style='text-align: center; color: #2b6cb0;'>🏦 RenovaIA</h1>")
-        cpf_input = gr.Textbox(label="Acesse com seu CPF", placeholder="000.000.000-00")
-        btn_verificar = gr.Button("VERIFICAR MINHAS OFERTAS", elem_classes="btn-banco")
-        status_msg = gr.Markdown("")
-
-    with gr.Column(visible=False) as tela_chat:
-        chatbot = gr.Chatbot(label="Chat", height=550, show_label=False)
-        with gr.Row():
-            txt_msg = gr.Textbox(placeholder="Escolha uma opção ou digite aqui...", scale=8, show_label=False)
-            btn_send = gr.Button("Enviar", variant="primary", scale=2)
+class AgenteNegociador:
+    def __init__(self):
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key: 
+            raise ValueError("Chave de API não encontrada!")
         
-        gr.Examples(
-            label="Escolha uma opção:",
-            examples=["🔍 Verificar Ofertas", "✅ Já efetuei o pagamento", "🚪 Encerrar Atendimento", "❓ Ajuda"], 
-            inputs=txt_msg
-        )
+        self.client = genai.Client(api_key=api_key)
+        
+        # 🎯 AJUSTE DE PRECISÃO:
+        # Testes mostram que em algumas regiões o SDK v1 exige o prefixo 'models/'
+        # para evitar o erro 404, enquanto outras rejeitam. 
+        # Vamos usar o padrão que a maioria dos endpoints v1 aceita agora:
+        self.model_id = "models/gemini-1.5-flash"
+        print(f"✅ MOTOR SINCRONIZADO: {self.model_id}")
 
-    btn_verificar.click(validar_e_entrar, [cpf_input], [tela_login, tela_chat, chatbot, status_msg])
-    btn_send.click(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
-    txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
+    def responder(self, mensagem, dados_cliente, historico_formatado):
+        prompt_sistema = f"""
+        Você é o Consultor Sênior de Saúde Financeira da RenovaIA. 
+        DADOS DO CLIENTE: {dados_cliente}
+        
+        ### ⚖️ DIRETRIZES:
+        - Informe CET de 1.99% a.m.
+        - Cite o Art. 52 do CDC.
+        - Boleto em bloco de código.
+        """
+        
+        try:
+            # Forçamos o envio com o ID que o Google reportou estar disponível
+            response = self.client.models.generate_content(
+                model=self.model_id,
+                config=types.GenerateContentConfig(
+                    system_instruction=prompt_sistema,
+                    temperature=0.1
+                ),
+                contents=historico_formatado + [
+                    types.Content(role="user", parts=[types.Part(text=mensagem)])
+                ]
+            )
+            
+            if response and response.text:
+                return response.text
+            return "Desculpe, João. Pode repetir? Meu sistema oscilou."
 
-if __name__ == "__main__":
-    meu_css = """
-    .btn-banco { background: #2b6cb0 !important; color: white !important; font-weight: bold !important; border-radius: 8px !important; }
-    code { background-color: #f7fafc !important; color: #2d3748 !important; padding: 6px !important; border-radius: 6px; border: 1px solid #e2e8f0 !important; font-family: monospace !important; }
-    footer { visibility: hidden !important; }
-    """
-    demo.launch(share=True, css=meu_css)
+        except Exception as e:
+            error_msg = str(e)
+            print(f"🚨 LOG TÉCNICO INTERNO: {error_msg}")
+            
+            # Se der 404 de novo com o prefixo, tentamos SEM o prefixo na próxima
+            if "404" in error_msg and "models/" in self.model_id:
+                self.model_id = "gemini-1.5-flash"
+                return "⚠️ Ajustando conexão com o servidor... Tente enviar sua mensagem novamente agora."
+                
+            if "429" in error_msg:
+                return "⚠️ Muita gente negociando agora! Aguarde 15 segundos e clique em Enviar."
+                
+            return "⚠️ Erro de comunicação. Tente novamente em instantes."
