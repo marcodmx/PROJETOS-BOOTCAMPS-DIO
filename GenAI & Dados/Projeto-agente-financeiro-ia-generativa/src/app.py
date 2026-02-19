@@ -22,19 +22,20 @@ def validar_e_avancar(cpf_com_mascara):
 def responder_chat(mensagem, historico, cpf_com_mascara):
     cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
     cliente = buscar_cliente_por_cpf(cpf_limpo)
+    
+    # Busca resposta da IA
     resposta_ia = agente.responder(mensagem, str(cliente))
     
-    # Formato moderno de mensagens (Gradio 5+)
-    historico.append({"role": "user", "content": mensagem})
-    historico.append({"role": "assistant", "content": resposta_ia})
+    # Formato Universal (Lista de Tuplas: [ (usuario, bot) ])
+    # Isso funciona tanto no Gradio antigo quanto no novo
+    historico.append((mensagem, resposta_ia))
+    
     return historico, ""
 
-# CSS e JS formatados como Raw Strings para evitar SyntaxWarnings
 css = r"""
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
 * { font-family: 'Inter', sans-serif !important; }
-.cpf-box input { font-size: 26px !important; text-align: center !important; font-weight: bold; color: #2D3748; }
-.gradio-container { max-width: 800px !important; margin: 0 auto !important; }
+.cpf-box input { font-size: 26px !important; text-align: center !important; font-weight: bold; }
 """
 
 js_mask = r"""
@@ -59,32 +60,21 @@ js_mask = r"""
 with gr.Blocks() as demo:
     with gr.Column(visible=True) as tela_login:
         gr.Markdown("# 🤖 RenovaIA\n### Identifique-se para acessar suas ofertas")
-        cpf_input = gr.Textbox(
-            label="Digite seu CPF", 
-            placeholder="000.000.000-00", 
-            elem_id="cpf_input", 
-            elem_classes="cpf-box"
-        )
+        cpf_input = gr.Textbox(label="CPF", placeholder="000.000.000-00", elem_id="cpf_input", elem_classes="cpf-box")
         btn_verificar = gr.Button("🔍 CONSULTAR PENDÊNCIAS", variant="primary", size="lg")
-        status_msg = gr.Markdown("") # Markdown limpo sem textAlign
+        status_msg = gr.Markdown("")
 
     with gr.Column(visible=False) as tela_chat:
         header_chat = gr.Markdown("")
-        chatbot = gr.Chatbot(label="Atendimento Personalizado", type="messages", height=500)
+        # REMOVIDO o parâmetro type="messages" para evitar o erro de compatibilidade
+        chatbot = gr.Chatbot(label="Atendimento", height=450)
         with gr.Row():
-            txt_msg = gr.Textbox(placeholder="Como posso te ajudar hoje?", show_label=False, scale=8)
+            txt_msg = gr.Textbox(placeholder="Como posso ajudar?", show_label=False, scale=8)
             btn_send = gr.Button("Enviar", variant="primary", scale=2)
 
-    # Eventos
     btn_verificar.click(validar_e_avancar, [cpf_input], [tela_login, tela_chat, header_chat])
     btn_send.click(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
     txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
 
 if __name__ == "__main__":
-    # Na versão 5+, configurações globais vão no launch()
-    demo.launch(
-        share=True,
-        css=css,
-        js=js_mask,
-        theme=gr.themes.Soft()
-    )
+    demo.launch(share=True, css=css, js=js_mask)
