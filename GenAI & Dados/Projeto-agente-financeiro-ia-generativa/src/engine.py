@@ -7,72 +7,51 @@ load_dotenv()
 
 class AgenteNegociador:
     def __init__(self):
-        # 1. Carrega a chave de API
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
             raise ValueError("Erro: Variável GOOGLE_API_KEY não configurada!")
             
-        # 2. Inicializa o cliente
         self.client = genai.Client(api_key=api_key)
         
-        # 3. Busca automática do modelo (Mantendo sua lógica original de verificação)
         try:
             available_models = [m.name for m in self.client.models.list()]
             target = "gemini-1.5-flash"
             self.model_id = next((m for m in available_models if target in m), available_models[0])
             if self.model_id.startswith("models/"):
                 self.model_id = self.model_id.replace("models/", "")
-            print(f"✅ Motor de Negociação Humanizado Ativo: {self.model_id}")
+            print(f"✅ Motor de Negociação Ativo: {self.model_id}")
         except Exception as e:
             self.model_id = "gemini-1.5-flash"
 
-    def responder(self, mensagem, dados_cliente):
+    def responder(self, historico_mensagens, dados_cliente):
         """
-        Gera resposta com lógica de trava pós-acordo, SAC e transbordo humano.
+        Recebe o histórico completo e os dados do cliente para manter a memória.
         """
-        
         prompt_sistema = f"""
-        Você é o especialista em sucesso financeiro da RenovaIA. 
-        Seu tom é empático, educado e focado em ajudar o cliente a recuperar a tranquilidade.
+        Você é o especialista financeiro da RenovaIA.
+        CLIENTE: {dados_cliente}
 
-        DADOS DO CLIENTE PARA CONSULTA:
-        {dados_cliente}
+        ### REGRAS DE MEMÓRIA E ESTADO:
+        1. Verifique as mensagens anteriores. Se você já apresentou o CÓDIGO DE BARRAS, o acordo está SELADO.
+        2. Uma vez selado, NUNCA mais ofereça opções de desconto ou parcelamento, mesmo que o cliente diga "Olá".
+        3. No estado PÓS-ACORDO, sua única função é tirar dúvidas sobre o pagamento, informar o SAC (0800 777 0000) e avisar que um humano assumirá o chat.
 
-        ### 🛡️ REGRA DE OURO - TRAVA PÓS-ACORDO:
-        - SE o cliente já escolheu uma opção (1 ou 2), ou se o histórico indica que o boleto já foi gerado:
-          1. NÃO ofereça as opções de desconto novamente.
-          2. Informe que o acordo para o Cartão Platinum já foi formalizado.
-          3. Pergunte se ele precisa de mais alguma informação técnica.
-          4. Informe que, para outros assuntos, ele será transferido para um consultor humano em instantes.
-          5. Informe o SAC para suporte: 0800 777 0000.
-
-        ### 🏦 DIRETRIZES DE ATENDIMENTO (FLUXO INICIAL):
-        1. ABORDAGEM: Nunca use "dívida" ou "pendência". Use "regularizar sua situação" ou "caminho para sua tranquilidade".
-        2. APRESENTAÇÃO (SE AINDA NÃO ESCOLHEU):
-           - Opção 1: Quitação à vista com desconto (aprox. R$ 1.850,00).
-           - Opção 2: Parcelamento (até 12x).
-           - Pergunte: "Qual dessas opções se encaixa melhor no seu planejamento hoje?"
-        3. FECHAMENTO IMEDIATO: Se o cliente digitar "1", "2", "primeira" ou "segunda", apresente o valor final, o código de barras e encerre a oferta.
-
-        ### 📄 CÓDIGO COPIÁVEL:
-        ```
-        23790.12345 60000.789012 34567.890123 1 95000000185000
-        ```
-
-        ### 🔚 ENCERRAMENTO:
-        Após gerar o boleto, use: "Tudo pronto! Ficamos felizes em ajudar. 🙏"
+        ### DIRETRIZES DE NEGOCIAÇÃO:
+        - Início: Ofereça Opção 1 (À vista R$ 1.850,00) e Opção 2 (12x).
+        - Escolha: Se o cliente escolher, gere o boleto e encerre a oferta.
+        - Boleto: ```23790.12345 60000.789012 34567.890123 1 95000000185000```
         """
         
         try:
+            # Enviamos o histórico completo para a API (Memória Real)
             response = self.client.models.generate_content(
                 model=self.model_id,
                 config=types.GenerateContentConfig(
                     system_instruction=prompt_sistema,
-                    temperature=0.3, # Ajustado para manter o foco na regra de fechamento
-                    top_p=0.95
+                    temperature=0.2,
                 ),
-                contents=[mensagem]
+                contents=historico_mensagens
             )
             return response.text
         except Exception as e:
-            return f"❌ Erro na negociação: {str(e)}"
+            return f"❌ Erro: {str(e)}"
