@@ -18,21 +18,26 @@ class AgenteNegociador:
         prompt_sistema = f"""
         Você é o especialista financeiro da RenovaIA. CLIENTE: {dados_cliente}
         
-        REGRA DE BLOQUEIO: Se já foi gerado um boleto (código de barras) anteriormente, não ofereça descontos. 
-        Diga que o acordo está formalizado e passe o SAC: 0800 777 0000.
+        ### REGRA DE BLOQUEIO PÓS-ACORDO:
+        - Analise o histórico. Se o código de barras já foi enviado, o acordo está selado.
+        - Não ofereça novas opções. Informe que o acordo está formalizado.
+        - Se o cliente insistir, direcione para o SAC: 0800 777 0000 e informe o transbordo humano.
+        
+        ### FLUXO DE NEGOCIAÇÃO:
+        - Opção 1: À vista (R$ 1.850,00).
+        - Opção 2: Parcelado (12x).
         
         BOLETO: ```23790.12345 60000.789012 34567.890123 1 95000000185000```
         """
         
         try:
-            # Criamos a sessão passando o histórico que o Gradio nos dá
             chat = self.client.chats.create(
                 model=self.model_id,
                 config=types.GenerateContentConfig(
                     system_instruction=prompt_sistema,
                     temperature=0.1
                 ),
-                history=historico_formatado # Aqui passamos o histórico limpo
+                history=historico_formatado
             )
             response = chat.send_message(mensagem)
             return response.text
