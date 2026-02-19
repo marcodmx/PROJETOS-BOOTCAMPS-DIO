@@ -1,78 +1,53 @@
-import gradio as gr
 import os
-from database import buscar_cliente_por_cpf
-from engine import AgenteNegociador
+from dotenv import load_dotenv
+from google import genai
 from google.genai import types
 
-agente = AgenteNegociador()
+load_dotenv()
 
-meu_css = """
-.gradio-container { background-color: #f7fafc; }
-.main-header { text-align: center; color: #2c5282; font-weight: bold; }
-"""
-
-def extrair_texto(conteudo):
-    """Resolve o erro de validação do Gradio 6 (converte lista/dict em string)."""
-    if isinstance(conteudo, str): return conteudo
-    if isinstance(conteudo, list) and len(conteudo) > 0:
-        if isinstance(conteudo[0], dict): return conteudo[0].get('text', '')
-        return str(conteudo[0])
-    return str(conteudo)
-
-def responder_chat(mensagem, historico, cpf_com_mascara):
-    cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
-    cliente = buscar_cliente_por_cpf(cpf_limpo)
-    
-    # Montagem do histórico para o Gemini sem erro de Pydantic
-    historico_ia = []
-    for msg in historico:
-        role_ia = "user" if msg['role'] == 'user' else "model"
-        texto_limpo = extrair_texto(msg['content'])
-        historico_ia.append(types.Content(role=role_ia, parts=[types.Part(text=texto_limpo)]))
-
-    # Gatilhos de Ação
-    if "🔍 Verificar Ofertas" in mensagem:
-        res = agente.responder("Gere agora a proposta de quitação com Art. 52 CDC e parcelamento 1.99% CET.", str(cliente), historico_ia)
-    else:
-        res = agente.responder(mensagem, str(cliente), historico_ia)
-    
-    historico.append({"role": "user", "content": mensagem})
-    historico.append({"role": "assistant", "content": res})
-    return historico, ""
-
-def validar_e_entrar(cpf_com_mascara):
-    cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
-    cliente = buscar_cliente_por_cpf(cpf_limpo)
-    if cliente:
-        nome = cliente['nome'].split()[0]
-        # Saudação Humana (Sem CDC aqui, conforme solicitado)
-        msg_inicial = [{"role": "assistant", "content": f"✨ Olá, {nome}! Sou o consultor da RenovaIA. Como posso te ajudar hoje?"}]
-        return gr.update(visible=False), gr.update(visible=True), msg_inicial, ""
-    return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não encontrado."
-
-with gr.Blocks(title="RenovaIA", css=meu_css) as demo:
-    with gr.Column(visible=True) as tela_login:
-        gr.Markdown("# 🏦 RenovaIA", elem_classes="main-header")
-        cpf_input = gr.Textbox(label="CPF", placeholder="000.000.000-00")
-        btn_entrar = gr.Button("ENTRAR", variant="primary")
-        status = gr.Markdown("")
-
-    with gr.Column(visible=False) as tela_chat:
-        chatbot = gr.Chatbot(label="Atendimento", height=500, type="messages")
-        with gr.Row():
-            txt_msg = gr.Textbox(placeholder="Sua mensagem...", scale=8, show_label=False)
-            btn_send = gr.Button("Enviar", variant="primary", scale=2)
+class AgenteNegociador:
+    def __init__(self):
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY não configurada!")
         
-        gr.Examples(
-            examples=["🔍 Verificar Ofertas", "✅ Já efetuei o pagamento", "🚪 Encerrar"], 
-            inputs=txt_msg,
-            label="Ações Rápidas"
+        self.client = genai.Client(api_key=api_key)
+        self.model_id = None
+        
+        try:
+            modelos = [m.name for m in self.client.models.list()]
+            if any("gemini-1.5-flash" in m for m in modelos):
+                self.model_id = "gemini-1.5-flash"
+            else:
+                self.model_id = "gemini-2.0-flash"
+            print(f"✅ Motor calibrado com: {self.model_id}")
+        except Exception as e:
+            self.model_id = "gemini-1.5-flash"
+
+    def responder(self, mensagem, dados_cliente, historico_formatado):
+        # CDC apenas como argumento de fechamento técnico
+        prompt_sistema = (
+            f"Você é o consultor sênior da RenovaIA. Dados do Cliente: {dados_cliente}. "
+            f"COMPORTAMENTO ESPERADO: "
+            f"1. Seja humano, empático e cordial no início. "
+            f"2. Somente quando o cliente tratar de valores, propostas ou boletos, apresente os cálculos. "
+            f"3. Use o Art. 52 do Código de Defesa do Consumidor (CDC) como base legal para garantir o desconto "
+            f"proporcional de juros e encargos na antecipação da dívida. "
+            f"4. Para parcelamentos, aplique rigorosamente o CET de 1.99% a.m. "
+            f"5. Formate as propostas em tabelas Markdown para clareza absoluta."
         )
-
-    btn_entrar.click(validar_e_entrar, [cpf_input], [tela_login, tela_chat, chatbot, status])
-    btn_send.click(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
-    txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
-
-if __name__ == "__main__":
-    gr.close_all()
-    demo.launch(share=True, inline=False, debug=True)
+        
+        try:
+            response = self.client.models.generate_content(
+                model=self.model_id,
+                config=types.GenerateContentConfig(
+                    system_instruction=prompt_sistema,
+                    temperature=0.2
+                ),
+                contents=historico_formatado + [
+                    types.Content(role="user", parts=[types.Part(text=mensagem)])
+                ]
+            )
+            return response.text if response.text else "Poderia repetir?"
+        except Exception as e:
+            return "Estou com uma instabilidade momentânea. Tente novamente."
