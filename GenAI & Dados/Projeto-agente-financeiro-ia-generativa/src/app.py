@@ -1,63 +1,58 @@
+import gradio as gr
 import os
-from dotenv import load_dotenv
-from google import genai
+from database import buscar_cliente_por_cpf
+from engine import AgenteNegociador
 from google.genai import types
 
-load_dotenv()
+# Inicializa o motor com a técnica de consulta
+agente = AgenteNegociador()
 
-class AgenteNegociador:
-    def __init__(self):
-        api_key = os.getenv("GOOGLE_API_KEY")
-        if not api_key: 
-            raise ValueError("Chave de API não encontrada!")
-        
-        self.client = genai.Client(api_key=api_key)
-        
-        # 🎯 AJUSTE DE PRECISÃO:
-        # Testes mostram que em algumas regiões o SDK v1 exige o prefixo 'models/'
-        # para evitar o erro 404, enquanto outras rejeitam. 
-        # Vamos usar o padrão que a maioria dos endpoints v1 aceita agora:
-        self.model_id = "models/gemini-1.5-flash"
-        print(f"✅ MOTOR SINCRONIZADO: {self.model_id}")
+def responder_chat(mensagem, historico, cpf_com_mascara):
+    cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
+    cliente = buscar_cliente_por_cpf(cpf_limpo)
+    
+    # Formatação de histórico compatível com o SDK GenAI
+    historico_ia = []
+    for turno in historico:
+        role_ia = "user" if turno['role'] == 'user' else "model"
+        # Garante que o conteúdo seja extraído corretamente como string
+        conteudo = turno['content']
+        texto = conteudo[0].get('text', str(conteudo)) if isinstance(conteudo, list) else str(conteudo)
+        historico_ia.append(types.Content(role=role_ia, parts=[types.Part(text=texto)]))
 
-    def responder(self, mensagem, dados_cliente, historico_formatado):
-        prompt_sistema = f"""
-        Você é o Consultor Sênior de Saúde Financeira da RenovaIA. 
-        DADOS DO CLIENTE: {dados_cliente}
-        
-        ### ⚖️ DIRETRIZES:
-        - Informe CET de 1.99% a.m.
-        - Cite o Art. 52 do CDC.
-        - Boleto em bloco de código.
-        """
-        
-        try:
-            # Forçamos o envio com o ID que o Google reportou estar disponível
-            response = self.client.models.generate_content(
-                model=self.model_id,
-                config=types.GenerateContentConfig(
-                    system_instruction=prompt_sistema,
-                    temperature=0.1
-                ),
-                contents=historico_formatado + [
-                    types.Content(role="user", parts=[types.Part(text=mensagem)])
-                ]
-            )
-            
-            if response and response.text:
-                return response.text
-            return "Desculpe, João. Pode repetir? Meu sistema oscilou."
+    # Chamada ao motor
+    res = agente.responder(mensagem, str(cliente), historico_ia)
+    
+    historico.append({"role": "user", "content": mensagem})
+    historico.append({"role": "assistant", "content": res})
+    return historico, ""
 
-        except Exception as e:
-            error_msg = str(e)
-            print(f"🚨 LOG TÉCNICO INTERNO: {error_msg}")
-            
-            # Se der 404 de novo com o prefixo, tentamos SEM o prefixo na próxima
-            if "404" in error_msg and "models/" in self.model_id:
-                self.model_id = "gemini-1.5-flash"
-                return "⚠️ Ajustando conexão com o servidor... Tente enviar sua mensagem novamente agora."
-                
-            if "429" in error_msg:
-                return "⚠️ Muita gente negociando agora! Aguarde 15 segundos e clique em Enviar."
-                
-            return "⚠️ Erro de comunicação. Tente novamente em instantes."
+def validar_e_entrar(cpf_com_mascara):
+    cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
+    cliente = buscar_cliente_por_cpf(cpf_limpo)
+    if cliente:
+        nome = cliente['nome'].split()[0]
+        msg_inicial = [{"role": "assistant", "content": f"Olá {nome}, sou o consultor RenovaIA. Como posso ajudar na sua negociação hoje?"}]
+        return gr.update(visible=False), gr.update(visible=True), msg_inicial, ""
+    return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não encontrado."
+
+with gr.Blocks() as demo:
+    with gr.Column(visible=True) as tela_login:
+        gr.Markdown("# 🏦 RenovaIA")
+        cpf_input = gr.Textbox(label="Digite seu CPF", placeholder="00000000000")
+        btn_entrar = gr.Button("VERIFICAR OFERTAS")
+        status = gr.Markdown("")
+
+    with gr.Column(visible=False) as tela_chat:
+        chatbot = gr.Chatbot(label="Chat de Negociação", height=500, type="messages")
+        with gr.Row():
+            txt_msg = gr.Textbox(placeholder="Sua mensagem...", scale=8, show_label=False)
+            btn_send = gr.Button("Enviar", scale=2)
+
+    btn_entrar.click(validar_e_entrar, [cpf_input], [tela_login, tela_chat, chatbot, status])
+    btn_send.click(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
+    txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
+
+if __name__ == "__main__":
+    gr.close_all()
+    demo.launch(share=True, debug=True)
