@@ -9,37 +9,43 @@ class AgenteNegociador:
     def __init__(self):
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key: 
-            raise ValueError("GOOGLE_API_KEY não encontrada no arquivo .env!")
+            raise ValueError("Sua GOOGLE_API_KEY sumiu do .env! Dá uma olhada lá.")
         
-        # Inicializa o cliente GenAI
         self.client = genai.Client(api_key=api_key)
+        self.model_id = None
         
-        # 🎯 DEFINIÇÃO DIRETA: O Google as vezes falha ao listar. 
-        # Vamos usar o ID puro que é o padrão da v1.
-        self.model_id = "gemini-1.5-flash"
-        print(f"✅ Motor de Negociação configurado para: {self.model_id}")
+        # 🕵️‍♂️ DESCOBERTA DINÂMICA: O pulo do gato para matar o 404
+        try:
+            # Lista os modelos disponíveis para a SUA chave
+            modelos = self.client.models.list()
+            for m in modelos:
+                # Procuramos o Flash 1.5 ou 2.0 (o que estiver disponível)
+                if "gemini-1.5-flash" in m.name or "gemini-2.0-flash" in m.name:
+                    # Remove o prefixo 'models/' se ele vier, a API nova prefere o ID puro
+                    self.model_id = m.name.replace("models/", "")
+                    break
+            
+            if not self.model_id:
+                self.model_id = "gemini-1.5-flash" # Última tentativa
+            
+            print(f"✅ Motor Ativo: {self.model_id}")
+        except Exception as e:
+            print(f"⚠️ Erro ao listar modelos: {e}")
+            self.model_id = "gemini-1.5-flash"
 
     def responder(self, mensagem, dados_cliente, historico_formatado):
-        # ⚖️ PROMPT SÊNIOR: Rigor legal + UX Emocional
         prompt_sistema = f"""
-        Você é o Consultor Sênior de Saúde Financeira da RenovaIA. CLIENTE: {dados_cliente}
-        
-        ### ⚖️ REGRAS LEGAIS E BANCÁRIAS:
-        1. CET (Custo Efetivo Total): Informe sempre que parcelamentos têm juros de 1.99% a.m.
-        2. AMORTIZAÇÃO (Art. 52 CDC): Se o cliente escolher parcelar, diga: "João, lembre-se que ao antecipar parcelas, você tem direito legal ao desconto proporcional dos juros! ⚖️"
-        3. BOLETO: Se ele aceitar, forneça o código: 
+        Você é o Consultor Sênior da RenovaIA. CLIENTE: {dados_cliente}
+        ### REGRAS LEGAIS:
+        - Informe CET de 1.99% a.m. e Art. 52 do CDC.
+        - Se o cliente aceitar, mande o boleto em bloco de código:
         ```
         23790.12345 60000.789012 34567.890123 1 95000000185000
         ```
-        
-        ### 🎭 UX EMOCIONAL:
-        - Use emojis e parabenize o cliente pela decisão de regularizar a vida financeira.
-        - Seja transparente, ético e empático.
         """
         
         try:
-            # 🚀 CHAMADA BLINDADA: Usamos o model_id sem o prefixo 'models/'
-            # Isso evita o erro 404 em 99% dos casos no SDK novo
+            # Força o uso do modelo descoberto
             response = self.client.models.generate_content(
                 model=self.model_id,
                 config=types.GenerateContentConfig(
@@ -53,9 +59,9 @@ class AgenteNegociador:
             
             if response and response.text:
                 return response.text
-            return "⚠️ A IA não retornou texto. Tente novamente."
+            return "🙌 João, tive um pequeno soluço aqui. Pode repetir?"
 
         except Exception as e:
-            # Log real no terminal para debug
-            print(f"🚨 ERRO CRÍTICO NA API: {str(e)}")
-            return "⚠️ Erro técnico de conexão. Por favor, tente novamente em alguns instantes."
+            print(f"🚨 ERRO CRÍTICO: {str(e)}")
+            return "⚠️ Erro de conexão com o banco. Tente de novo em 5 segundos."
+            
