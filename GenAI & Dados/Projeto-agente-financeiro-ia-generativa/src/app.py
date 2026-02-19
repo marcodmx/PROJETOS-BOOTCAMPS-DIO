@@ -10,23 +10,21 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     nome_cliente = cliente['nome'].split()[0] if cliente else "Cliente"
 
-    # 1. Lógica Contextual de NPS (Só aceita nota se a IA pediu anteriormente)
+    # Lógica de NPS Condicional
     if historico:
         ultima_resposta = historico[-1]['content']
         if "digite uma nota de 1 a 10" in str(ultima_resposta).lower():
             if mensagem.isdigit() and 1 <= int(mensagem) <= 10:
-                res = f"🌟 **Nota {mensagem} registrada!** Muito obrigado, {nome_cliente}. Seu feedback ajuda a RenovaIA a ser cada vez melhor para sua saúde financeira. Até logo! ✨"
+                res = f"🌟 **Nota {mensagem} registrada!** Obrigado, {nome_cliente}. A RenovaIA agradece seu feedback! ✨"
                 historico.append({"role": "user", "content": f"Nota: {mensagem}"})
                 historico.append({"role": "assistant", "content": res})
                 return historico, ""
 
-    # 2. Gatilhos de Botões
     if "Já efetuei o pagamento" in mensagem:
-        res = "✍️ **Confirmado!** Registrei aqui sua informação. Em até 3 dias úteis o pagamento será compensado e seu limite restabelecido. Parabéns! 🙌"
+        res = "✍️ **Confirmado!** Em até 3 dias úteis seu limite será restabelecido. Parabéns! 🙌"
     elif "Encerrar Atendimento" in mensagem:
-        res = f"Foi um prazer te ajudar hoje, {nome_cliente}! ✅ Para encerrarmos com chave de ouro, **por favor, digite uma nota de 1 a 10** para o meu atendimento. 👇"
+        res = f"Foi um prazer ajudar, {nome_cliente}! ✅ **Por favor, digite uma nota de 1 a 10** para meu atendimento. 👇"
     else:
-        # 3. Preparação do Histórico para IA (Sanitizado)
         historico_ia = []
         for turno in historico:
             role_ia = "user" if turno['role'] == 'user' else "model"
@@ -45,11 +43,15 @@ def validar_e_entrar(cpf_com_mascara):
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     if cliente:
         nome = cliente['nome'].split()[0]
-        msg = f"✨ **Olá, {nome}!** Sou seu consultor RenovaIA. Analisei seu perfil e preparei condições com transparência total de CET e juros. Vamos regularizar isso hoje? 🤝"
+        msg = f"✨ **Olá, {nome}!** Sou seu consultor RenovaIA. Vamos regularizar sua saúde financeira com transparência total? 🤝"
         return gr.update(visible=False), gr.update(visible=True), [{"role": "assistant", "content": msg}], ""
     return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não localizado."
 
-meu_css = ".btn-banco { background: #2b6cb0 !important; color: white !important; font-weight: bold !important; }"
+# CSS para destacar o bloco de código do boleto
+meu_css = """
+.btn-banco { background: #2b6cb0 !important; color: white !important; font-weight: bold !important; }
+code { background-color: #f7fafc !important; color: #2d3748 !important; border: 1px solid #e2e8f0 !important; padding: 4px !important; border-radius: 4px; }
+"""
 
 with gr.Blocks(title="RenovaIA") as demo:
     with gr.Column(visible=True) as tela_login:
@@ -59,7 +61,7 @@ with gr.Blocks(title="RenovaIA") as demo:
         status_msg = gr.Markdown("")
 
     with gr.Column(visible=False) as tela_chat:
-        chatbot = gr.Chatbot(label="Atendimento RenovaIA", height=500)
+        chatbot = gr.Chatbot(label="Atendimento RenovaIA", height=550)
         with gr.Row():
             txt_msg = gr.Textbox(placeholder="Escolha uma opção ou tire dúvidas...", scale=8)
             btn_send = gr.Button("Enviar", variant="primary", scale=2)
