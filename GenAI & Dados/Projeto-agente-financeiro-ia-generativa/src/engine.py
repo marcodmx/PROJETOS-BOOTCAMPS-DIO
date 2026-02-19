@@ -15,54 +15,62 @@ class AgenteNegociador:
         # 2. Inicializa o cliente da SDK v2.0
         self.client = genai.Client(api_key=api_key)
         
-        # 3. Lógica de Busca Automática (O que resolveu o erro 404)
+        # 3. Lógica de Busca Automática do Modelo
         try:
-            # Lista os modelos disponíveis na sua conta
             available_models = [m.name for m in self.client.models.list()]
             target = "gemini-1.5-flash"
             
-            # Busca o modelo alvo ou pega o primeiro disponível como fallback
             self.model_id = next((m for m in available_models if target in m), available_models[0])
             
-            # Limpeza crucial: remove 'models/' se a API retornar com o prefixo
             if self.model_id.startswith("models/"):
                 self.model_id = self.model_id.replace("models/", "")
                 
-            print(f"✅ Modelo selecionado e validado: {self.model_id}")
+            print(f"✅ Modelo validado para negociação: {self.model_id}")
         except Exception as e:
-            print(f"⚠️ Erro ao listar modelos, usando padrão fixo: {e}")
+            print(f"⚠️ Usando fallback: {e}")
             self.model_id = "gemini-1.5-flash"
 
     def responder(self, mensagem, dados_cliente):
         """
-        Gera a resposta da IA utilizando os dados do cliente e o prompt otimizado.
+        Gera a resposta da IA com foco em fechamento, CET e código copiável.
         """
-        # Unindo empatia com regras de fechamento profissional
+        
+        # O "Cérebro" da negociação com as regras que alinhamos
         prompt_sistema = f"""
-        Você é o RenovaIA, assistente especialista em negociação de dívidas.
-        MISSÃO: Ajudar o cliente a regularizar sua situação de forma amigável, clara e motivadora.
+        Você é o motor de fechamento da RenovaIA. Sua comunicação é funcional, clara e focada em resultados.
 
-        DADOS DO CLIENTE:
+        DADOS DO CLIENTE LOCALIZADOS NO SISTEMA:
         {dados_cliente}
 
-        DIRETRIZES DE RESPOSTA (Mantenha sempre):
-        1. Saudações pelo primeiro nome e empatia total.
-        2. Use **NEGRITO** para valores e produtos.
-        3. Seja PROATIVO: ofereça sempre dois caminhos (Ex: à vista ou parcelado).
+        ### DIRETRIZES RÍGIDAS DE FLUXO (Siga a risca):
 
-        NOVAS REGRAS DE FECHAMENTO (ESSENCIAL):
-        4. CELEBRAÇÃO: Se o cliente aceitar um acordo, diga: "Parabéns! 🥂 Este é um passo gigante para sua liberdade financeira."
-        5. VENCIMENTO: Todo boleto (à vista ou 1ª parcela) vence em 2 dias úteis. Informe isso claramente.
-        6. JUROS: Avise que pagamentos após o vencimento cancelam o acordo e geram encargos.
-        7. PARCELAMENTO: Se parcelado, liste as parcelas e explique que as próximas vencem no mesmo dia dos meses seguintes.
-        8. FORMATO DO BOLETO: Apresente o código de barras (fictício, mas realista) dentro de um bloco de código Markdown:
+        1. RECONHECIMENTO DE OPÇÃO (STOP LOOP): Se o usuário digitar '1', '2' ou escolher uma oferta, PARE de dar saudações ou explicações genéricas. 
+           Responda imediatamente: "Você escolheu a **Opção [X]**. Confira o detalhamento do seu acordo abaixo:"
+
+        2. TABELA DE DETALHAMENTO (CET): Logo após a confirmação, apresente os valores de forma profissional:
+           - Valor Principal: R$ [X]
+           - Multa/Encargos de Atraso: R$ [X]
+           - Desconto Aplicado: -R$ [X]
+           - **TOTAL FINAL A PAGAR: R$ [Valor Calculado]**
+           Pergunte: "Posso formalizar este acordo e gerar seu código de barras agora?"
+
+        3. FECHAMENTO E CÓDIGO COPIÁVEL: Se o usuário confirmar (ex: 'Sim', 'Pode', 'Confirmar'), responda:
+           "Parabéns! 🥂 Seu acordo foi formalizado com sucesso. Este é um grande passo para sua saúde financeira."
+           Exiba o código de barras EXATAMENTE neste bloco para habilitar o botão de copiar:
            ```
            23790.12345 60000.789012 34567.890123 1 95000000185000
            ```
+           Informe claramente:
+           - Vencimento: em 2 dias úteis.
+           - Importante: Pagamentos após o prazo cancelam o acordo e geram novos juros.
+
+        4. WHATSAPP: Somente APÓS gerar o código de barras, pergunte se ele deseja receber uma cópia no WhatsApp cadastrado.
+
+        5. POSTURA: Seja empático, mas proativo. Use **NEGRITO** para destacar valores e datas.
         """
         
         try:
-            # 5. Chamada para a geração de conteúdo
+            # 4. Chamada para a geração de conteúdo usando a Configuração de Instrução do Sistema
             response = self.client.models.generate_content(
                 model=self.model_id,
                 config=types.GenerateContentConfig(
@@ -74,4 +82,4 @@ class AgenteNegociador:
             )
             return response.text
         except Exception as e:
-            return f"❌ Erro ao processar resposta da IA: {str(e)}"
+            return f"❌ Erro ao processar negociação: {str(e)}"
