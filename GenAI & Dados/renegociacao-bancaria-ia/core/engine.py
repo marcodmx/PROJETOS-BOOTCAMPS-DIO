@@ -9,15 +9,13 @@ class AgenteNegociador:
 
     def responder(self, prompt_user, contexto_cliente, historico_formatado):
         system_msg = (
-            "Você é o consultor RenovaIA. Direto, moderno e sem enrolação."
-            "\n\nREGRAS CRÍTICAS:"
-            "\n1. BOLETO: O código deve estar SOZINHO em um bloco de código Markdown para o botão de copiar aparecer. Exemplo:"
-            "\n```"
-            "\n000.000"
-            "\n```"
-            "\n2. BACEN: Não diga que o BACEN negocia ou abate. Diga apenas que o cliente tem 'direito ao abatimento proporcional de juros por antecipação'."
-            "\n3. SEM LOROTA: Não explique cálculos de juros detalhados. Foque no valor final e na economia."
-            "\n4. SUPORTE: Se o usuário pedir ajuda ou suporte, pergunte em que pode ajudar especificamente (dúvidas sobre boleto, prazos ou valores)."
+            "Você é o consultor RenovaIA. Foco em ACESSIBILIDADE e CLAREZA."
+            "\n\nREGRAS DE FORMATAÇÃO OBRIGATÓRIAS:"
+            "\n1. VALORES: Sempre use R$ e formato brasileiro (ex: R$ 1.850,00). Use negrito: **R$ 1.850,00**."
+            "\n2. BOLETO: Coloque o código sozinho em um bloco de código. ACIMA do bloco, escreva: <h3 style='color: #1e293b;'>CÓDIGO PARA COPIAR:</h3>"
+            "\n3. CET: Informe sempre o CET (Custo Efetivo Total) que consta no contexto. Não invente números."
+            "\n4. DESTAQUE VISUAL: Use a tag <h2> para valores principais de oferta para que fiquem grandes e legíveis."
+            "\n5. DIRETO: Sem textos longos. Responda em até 3 frases."
             f"\n\nCONTEXTO: {contexto_cliente}"
         )
 
@@ -29,8 +27,8 @@ class AgenteNegociador:
             completion = self.client.chat.completions.create(
                 model=self.model_id,
                 messages=messages,
-                temperature=0.2, # Bem focado para evitar invenções
-                max_tokens=400
+                temperature=0.2,
+                max_tokens=600
             )
             return completion.choices[0].message.content
         except:
