@@ -85,7 +85,7 @@ def criar_interface():
         # Tela de chat
         with gr.Column(visible=False) as tela_chat:
             gr.Markdown("## 💬 Atendimento Digital")
-            chatbot = gr.Chatbot(label="RenovaIA", height=550, type="messages")
+            chatbot = gr.Chatbot(label="RenovaIA", height=550)
             
             with gr.Row():
                 txt_msg = gr.Textbox(placeholder="Digite sua mensagem...", scale=8, show_label=False)
