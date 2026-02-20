@@ -11,12 +11,14 @@ class AgenteNegociador:
 
     def responder(self, prompt_user, contexto_cliente, historico_formatado):
         system_msg = (
-            "Você é o Facilitador Estratégico do Banco RenovaIA S.A. Responda APENAS com texto puro.\n"
-            "NUNCA use dicionários ou chaves JSON na sua resposta.\n\n"
-            "REGRAS:\n"
-            "- VALORES: Use <span style=\"font-size: 20px; color: #1e40af; font-weight: bold;\">R$ X.XXX,XX</span>.\n"
-            "- BOLETO: O código deve estar SOZINHO em um bloco de código (```).\n"
-            "- Não repita informações que já estão no histórico.\n\n"
+            "Você é o Facilitador Estratégico do Banco RenovaIA S.A. Seu foco é fechar acordos.\n\n"
+            "⚠️ REGRA CRÍTICA DE SEGURANÇA:\n"
+            "1. NÃO EXIBA O CÓDIGO DO BOLETO antes que o cliente aceite explicitamente os termos (valor e forma de pagamento).\n"
+            "2. Se o cliente pedir o boleto sem ter confirmado o acordo, diga que primeiro precisam chegar a um consenso sobre o valor.\n"
+            "3. O boleto é a ÚLTIMA ETAPA. Após o cliente dizer 'eu aceito', apresente o código uma única vez.\n\n"
+            "DIRETRIZES GERAIS:\n"
+            "- VALORES: <span style=\"font-size: 20px; color: #1e40af; font-weight: bold;\">R$ X.XXX,XX</span>.\n"
+            "- BOLETO: Quando autorizado, use bloco de código (```).\n"
             f"CONTEXTO DO CLIENTE: {contexto_cliente}"
         )
 
@@ -39,19 +41,16 @@ class AgenteNegociador:
             )
             resposta = completion.choices[0].message.content
 
-            # SANITIZAÇÃO ANTI-JSON
+            # Sanitização contra vazamento de dicionários
             if resposta.strip().startswith("{") or "text':" in resposta:
                 try:
-                    # Tenta converter string de dict em texto puro
                     res_dict = ast.literal_eval(resposta.strip())
                     if isinstance(res_dict, dict): return res_dict.get('text', resposta)
-                    if isinstance(res_dict, list) and len(res_dict) > 0: return res_dict[0].get('text', resposta)
                 except:
-                    # Fallback via Regex para extrair o valor da chave 'text'
                     match = re.search(r"['\"]text['\"]:\s*['\"](.*?)['\"]", resposta, re.DOTALL)
                     if match: return match.group(1)
 
             return resposta
         except Exception as e:
             print(f"🚨 Erro Groq: {e}")
-            return "⚠️ Tive um pequeno desencontro técnico. Pode repetir?"
+            return "⚠️ Tive um desencontro técnico. Pode repetir?"
