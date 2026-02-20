@@ -3,147 +3,112 @@ import random
 from core.database import buscar_cliente_por_cpf
 from core.engine import AgenteNegociador
 
-# Inicializa o motor da IA
 agente = AgenteNegociador()
 
 TITULOS_IA = ["✨ Sua Jornada Financeira", "🚀 Rumo ao Azul", "🤝 Vamos resolver?"]
 
-# Estilização para o Portal RenovaIA
 MEU_CSS = """
-.gradio-container { background-color: #f8fafc !important; font-family: 'Inter', sans-serif; }
-.main-header { text-align: center; color: #0f172a; font-weight: 800; font-size: 32px; padding: 20px; }
-.action-btn { font-weight: 700 !important; margin-bottom: 12px !important; }
-.error-msg { color: #dc2626 !important; font-weight: 600 !important; text-align: center; margin-top: 10px; }
+.gradio-container { background-color: #f1f5f9 !important; }
+.main-header { text-align: center; color: #1e3a8a; font-weight: 800; padding: 20px; }
 
-/* Destaque para valores monetários via SPAN */
-span[style*="font-size: 20px"] {
-    background-color: #eff6ff;
-    padding: 2px 6px;
-    border-radius: 4px;
-}
+/* Estilo do Chat */
+.bubble { border-radius: 12px !important; }
 
-/* Formatação do bloco de código para o boleto */
+/* Estilo do Bloco de Boleto (Markdown Code) */
 .prose pre {
-    background-color: #f1f5f9 !important;
-    border: 2px solid #e2e8f0 !important;
-    border-radius: 8px !important;
-    padding: 12px !important;
+    background-color: #ffffff !important;
+    border: 2px dashed #cbd5e1 !important;
+    color: #0f172a !important;
+    padding: 15px !important;
+    border-radius: 10px !important;
+    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
 }
 .prose code {
-    font-size: 16px !important;
-    color: #1e293b !important;
+    font-family: 'Courier New', monospace !important;
+    font-weight: bold !important;
+    font-size: 1.1em !important;
+}
+
+/* Destaque Azul para valores */
+span[style*="color: #1e40af"] {
+    background-color: #dbeafe;
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: 1px solid #bfdbfe;
 }
 """
 
 def validar_e_entrar(cpf_com_mascara):
-    """Realiza o login e prepara o ambiente de chat."""
     cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
-    
     if len(cpf_limpo) != 11:
-        return gr.update(visible=True), gr.update(visible=False), None, "### ⚠️ Atenção: Digite os 11 números do seu CPF."
+        return gr.update(visible=True), gr.update(visible=False), None, "### ⚠️ CPF Inválido."
 
     cliente = buscar_cliente_por_cpf(cpf_limpo)
-    
     if cliente:
         nome = cliente.get('nome', 'Cliente').split()[0]
         dividas = cliente.get('dividas', [])
         produto = dividas[0].get('produto', 'crédito') if dividas else "crédito"
         
-        # Mensagem inicial no formato moderno de dicionário
-        msg_inicial = [{"role": "assistant", "content": f"👋 Olá, {nome}! Que bom ter você aqui. Encontrei uma excelente oportunidade para seu {produto}. Como posso te ajudar?"}]
+        msg_inicial = [{"role": "assistant", "content": f"👋 Olá, {nome}! Identificamos uma oportunidade de liquidação para seu **{produto}**. Como podemos avançar hoje?"}]
         return gr.update(visible=False), gr.update(visible=True), msg_inicial, ""
     
-    return gr.update(visible=True), gr.update(visible=False), None, "### ❌ Erro: CPF não localizado em nossa base."
+    return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não encontrado."
 
 def responder_chat(mensagem, historico, cpf_com_mascara):
-    """Gerencia o envio de mensagens e limpa a saída para evitar JSON no chat."""
     if not mensagem: return historico, ""
     
     cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
     cliente = buscar_cliente_por_cpf(cpf_limpo)
+    divida = cliente.get('dividas', [{}])[0] if cliente else {}
     
-    # Extração de dados da dívida para o contexto da IA
-    divida_ativa = cliente.get('dividas', [{}])[0] if cliente else {}
-    contexto_ia = {
-        "cliente": cliente.get("nome"),
-        "produto": divida_ativa.get("produto"),
-        "valor_total": divida_ativa.get("valor_total_atualizado"),
-        "oferta_vista": divida_ativa.get("oferta_minima_avista"),
-        "boleto": divida_ativa.get("codigo_boleto_atual")
+    # Contexto minimalista para a IA focar na evolução e não na repetição
+    contexto = {
+        "produto": divida.get("produto"),
+        "total": divida.get("valor_total_atualizado"),
+        "avista": divida.get("oferta_minima_avista"),
+        "linha_digitavel": divida.get("codigo_boleto_atual")
     }
 
     historico = historico or []
+    resposta_ia = agente.responder(mensagem, str(contexto), historico)
     
-    # Obtém resposta da IA (passando o histórico para manter a memória)
-    resposta_bruta = agente.responder(mensagem, str(contexto_ia), historico)
-    
-    # --- LÓGICA DE SAÍDA LIMPA ---
-    # Se a resposta vier como um dicionário ou lista (erro de algumas versões do Gradio), extraímos apenas o texto.
-    if isinstance(resposta_bruta, list) and len(resposta_bruta) > 0:
-        texto_final = resposta_bruta[0].get('text', str(resposta_bruta[0]))
-    elif isinstance(resposta_bruta, dict):
-        texto_final = resposta_bruta.get('text', str(resposta_bruta))
-    else:
-        texto_final = str(resposta_bruta)
-    
-    # Adiciona as mensagens ao histórico do Chatbot
+    # Limpeza de saída para Gradio
+    if isinstance(resposta_ia, (dict, list)):
+        resposta_ia = str(resposta_ia)
+
     historico.append({"role": "user", "content": mensagem})
-    historico.append({"role": "assistant", "content": texto_final})
+    historico.append({"role": "assistant", "content": resposta_ia})
     
     return historico, ""
 
 def criar_interface():
-    """Desenha a UI do sistema."""
-    titulo_sessao = random.choice(TITULOS_IA)
-    
-    with gr.Blocks(title="RenovaIA Pro") as demo:
-        # TELA DE LOGIN
+    with gr.Blocks(title="RenovaIA v2", css=MEU_CSS) as demo:
         with gr.Column(visible=True) as tela_login:
-            gr.Markdown("# 🏦 Portal RenovaIA", elem_classes="main-header")
-            cpf_input = gr.Textbox(label="CPF", placeholder="Ex: 12345678901", max_lines=1)
-            btn_entrar = gr.Button("ACESSAR", variant="primary")
-            status_login = gr.Markdown("", elem_classes="error-msg")
+            gr.Markdown("# 🏦 Portal de Negociação", elem_classes="main-header")
+            cpf_input = gr.Textbox(label="Digite seu CPF para consultar ofertas", placeholder="000.000.000-00")
+            btn_entrar = gr.Button("CONSULTAR OFERTAS", variant="primary")
+            status_login = gr.Markdown("")
 
-        # TELA DE NEGOCIAÇÃO
         with gr.Column(visible=False) as tela_chat:
+            gr.Markdown("### 🤝 Negociação em Tempo Real")
+            chatbot = gr.Chatbot(label="Atendimento", height=500, type="messages")
+            
             with gr.Row():
-                with gr.Column(scale=8):
-                    gr.Markdown(f"## {titulo_sessao}")
-                with gr.Column(scale=1, min_width=100):
-                    btn_sair = gr.Button("Sair 🚪", variant="secondary")
+                txt_msg = gr.Textbox(placeholder="Digite sua proposta ou dúvida...", scale=7, show_label=False)
+                btn_send = gr.Button("Enviar", variant="primary", scale=1)
 
             with gr.Row():
-                with gr.Column(scale=4):
-                    chatbot = gr.Chatbot(label="Consultor Virtual", height=550, sanitize_html=False)
-                    with gr.Row():
-                        txt_msg = gr.Textbox(placeholder="Escreva sua mensagem...", scale=8, show_label=False)
-                        btn_send = gr.Button("Enviar", variant="primary", scale=2)
-                
-                with gr.Column(scale=1):
-                    gr.Markdown("### ⚡ Ações Rápidas")
-                    btn_ofertas = gr.Button("🔍 Minha Solução", elem_classes="action-btn")
-                    btn_desc = gr.Button("📉 Propor Valor", elem_classes="action-btn")
-                    btn_boleto = gr.Button("📄 Gerar Boleto", elem_classes="action-btn")
+                btn_oferta = gr.Button("🔍 Ver Detalhes", size="sm")
+                btn_boleto = gr.Button("📄 Gerar Boleto", size="sm")
+                btn_sair = gr.Button("Sair 🚪", size="sm", variant="secondary")
 
-        # EVENTOS
-        btn_entrar.click(
-            validar_e_entrar, 
-            [cpf_input], 
-            [tela_login, tela_chat, chatbot, status_login]
-        )
-        
-        btn_sair.click(
-            lambda: (gr.update(visible=True), gr.update(visible=False), None, ""), 
-            None, 
-            [tela_login, tela_chat, chatbot, status_login]
-        )
-        
+        # Eventos
+        btn_entrar.click(validar_e_entrar, [cpf_input], [tela_login, tela_chat, chatbot, status_login])
         btn_send.click(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
         txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
-
-        # Atalhos
-        btn_ofertas.click(lambda h, c: responder_chat("Quais são as condições para o meu caso?", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
-        btn_desc.click(lambda h, c: responder_chat("Gostaria de propor um valor diferente para quitação.", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
-        btn_boleto.click(lambda h, c: responder_chat("Pode me enviar o código do boleto?", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
+        
+        btn_oferta.click(lambda h, c: responder_chat("Pode me dar os detalhes da oferta?", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
+        btn_boleto.click(lambda h, c: responder_chat("Gere o boleto para mim agora, por favor.", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
+        btn_sair.click(lambda: (gr.update(visible=True), gr.update(visible=False), None, ""), None, [tela_login, tela_chat, chatbot, status_login])
 
     return demo
