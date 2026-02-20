@@ -1,0 +1,191 @@
+{
+  "clientes": [
+    {
+      "id": 1,
+      "nome": "João Silva",
+      "cpf": "123.456.789-00",
+      "dividas": [
+        {
+          "produto": "Cartão de Crédito Platinum",
+          "valor_original": 2500.00,
+          "dias_atraso": 125,
+          "juros_acumulados": 450.00,
+          "valor_total_atualizado": 2950.00,
+          "oferta_minima_avista": 1850.00,
+          "parcelamento_maximo": 12,
+          "status": "Inadimplente",
+          "codigo_boleto_atual": "23790.12345 60000.789012 34567.890123 1 95000000185000"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "nome": "Maria Oliveira",
+      "cpf": "987.654.321-11",
+      "dividas": [
+        {
+          "produto": "Empréstimo Pessoal",
+          "valor_original": 5000.00,
+          "dias_atraso": 45,
+          "juros_acumulados": 150.00,
+          "valor_total_atualizado": 5150.00,
+          "oferta_minima_avista": 4900.00,
+          "parcelamento_maximo": 24,
+          "status": "Atraso Curto",
+          "codigo_boleto_atual": "23790.98765 40000.321098 76543.210987 2 95000000490000"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "nome": "Carlos Mendes",
+      "cpf": "456.789.123-22",
+      "dividas": [
+        {
+          "produto": "Financiamento de Veículo",
+          "valor_original": 30000.00,
+          "dias_atraso": 60,
+          "juros_acumulados": 900.00,
+          "valor_total_atualizado": 30900.00,
+          "oferta_minima_avista": 27000.00,
+          "parcelamento_maximo": 36,
+          "status": "Inadimplente",
+          "codigo_boleto_atual": "23790.45678 90000.123456 78901.234567 3 95000002700000"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "nome": "Ana Paula Costa",
+      "cpf": "321.654.987-33",
+      "dividas": [
+        {
+          "produto": "Cartão de Crédito Gold",
+          "valor_original": 1800.00,
+          "dias_atraso": 30,
+          "juros_acumulados": 90.00,
+          "valor_total_atualizado": 1890.00,
+          "oferta_minima_avista": 1750.00,
+          "parcelamento_maximo": 10,
+          "status": "Atraso Curto",
+          "codigo_boleto_atual": "23790.32165 40000.987654 32109.876543 4 95000000175000"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "nome": "Ricardo Lima",
+      "cpf": "654.321.987-44",
+      "dividas": [
+        {
+          "produto": "Empréstimo Pessoal",
+          "valor_original": 12000.00,
+          "dias_atraso": 95,
+          "juros_acumulados": 1800.00,
+          "valor_total_atualizado": 13800.00,
+          "oferta_minima_avista": 11000.00,
+          "parcelamento_maximo": 24,
+          "status": "Inadimplente",
+          "codigo_boleto_atual": "23790.65432 10000.987654 32101.234567 5 95000001100000"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "nome": "Patrícia Alves",
+      "cpf": "789.123.456-55",
+      "dividas": [
+        {
+          "produto": "Financiamento Imobiliário",
+          "valor_original": 80000.00,
+          "dias_atraso": 180,
+          "juros_acumulados": 12000.00,
+          "valor_total_atualizado": 92000.00,
+          "oferta_minima_avista": 78000.00,
+          "parcelamento_maximo": 120,
+          "status": "Inadimplente",
+          "codigo_boleto_atual": "23790.78912 30000.456789 12345.678901 6 95000007800000"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "nome": "Felipe Santos",
+      "cpf": "159.753.486-66",
+      "dividas": [
+        {
+          "produto": "Cartão de Crédito Classic",
+          "valor_original": 950.00,
+          "dias_atraso": 10,
+          "juros_acumulados": 15.00,
+          "valor_total_atualizado": 965.00,
+          "oferta_minima_avista": 950.00,
+          "parcelamento_maximo": 6,
+          "status": "Em Dia",
+          "codigo_boleto_atual": "23790.15975 30000.486159 75384.615987 7 95000000950000"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "nome": "Juliana Ferreira",
+      "cpf": "753.951.852-77",
+      "dividas": [
+        {
+          "produto": "Empréstimo Estudantil",
+          "valor_original": 6000.00,
+          "dias_atraso": 75,
+          "juros_acumulados": 300.00,
+          "valor_total_atualizado": 6300.00,
+          "oferta_minima_avista": 5900.00,
+          "parcelamento_maximo": 36,
+          "status": "Inadimplente",
+          "codigo_boleto_atual": "23790.75395 10000.852963 95185.296385 8 95000000590000"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "nome": "Leonardo Costa",
+      "cpf": "852.456.159-88",
+      "dividas": [
+        {
+          "produto": "Cartão de Crédito Black",
+          "valor_original": 7200.00,
+          "dias_atraso": 150,
+          "juros_acumulados": 1080.00,
+          "valor_total_atualizado": 8280.00,
+          "oferta_minima_avista": 6500.00,
+          "parcelamento_maximo": 12,
+          "status": "Inadimplente",
+          "codigo_boleto_atual": "23790.85245 60000.159852 45615.985214 9 95000000650000"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "nome": "Camila Rocha",
+      "cpf": "951.357.456-99",
+      "dividas": [
+        {
+          "produto": "Financiamento Veículo",
+          "valor_original": 40000.00,
+          "dias_atraso": 60,
+          "juros_acumulados": 1200.00,
+          "valor_total_atualizado": 41200.00,
+          "oferta_minima_avista": 38000.00,
+          "parcelamento_maximo": 48,
+          "status": "Inadimplente",
+          "codigo_boleto_atual": "23790.95135 70000.456123 35745.612345 10 95000003800000"
+        }
+      ]
+    }
+  ],
+  "configuracoes_gerais": {
+    "instituicao": "Banco RenovaIA S.A.",
+    "politica_desconto_max": "35% para dividas > 90 dias",
+    "taxa_juros_mensal": "1.5%",
+    "canal_ouvidoria": "0800-777-1234",
+    "mensagem_quitacao": "Após o pagamento, o prazo de baixa é de até 3 dias úteis."
+  }
+}
