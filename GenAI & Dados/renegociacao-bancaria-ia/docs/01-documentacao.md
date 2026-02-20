@@ -33,28 +33,42 @@ Acolhedor, transparente e direto. Traduz termos técnicos para linguagem simples
 
 ## 3. Arquitetura
 
-### Diagrama de Fluxo (Mermaid)
-```mermaid
 graph TD
+    ### Diagrama de Fluxo (Mermaid)
+
+```mermaid
+
+graph TD
+
     A[Cliente / Usuário] -->|Interação via Chat Gradio| B(Agente RenovaIA - Groq LLM)
+
     B --> C{Orquestrador de Contexto}
+
     C -->|Consulta Dívidas e Prazos| D[(Base de Conhecimento - JSON)]
+
     C -->|Valida Regras de Negócio| E[Políticas de Desconto]
+
     D --> B
+
     E --> B
+
     B --> F{Saída de Dados}
+
     F -->|Interface de Texto| G[Respostas no Chat]
+
     F -->|Automação de Docs| H[Emissão de Boletos/Quitação]
+
     G --> A
+
     H --> A
 ```
 | Componente               | Descrição                                                                                     |
 | :----------------------- | :-------------------------------------------------------------------------------------------- |
-| **Interface**            | Chatbot interativo em Gradio, otimizado para mobile.                                          |
-| **LLM**                  | Groq LLM (Llama 3.1 8B Instant), escolhido para balancear velocidade, custo e precisão.       |
-| **Orquestração**         | Python com System Instructions para gerenciar fluxo de diálogo e recuperação de dados.        |
+| **Interface** | Chatbot interativo em Gradio, otimizado para mobile.                                          |
+| **LLM** | Groq LLM (Llama 3.3 70B Versatile), escolhido pelo alto raciocínio lógico e baixa latência.   |
+| **Orquestração** | Python com System Instructions para gerenciar fluxo de diálogo e recuperação de dados.        |
 | **Base de Conhecimento** | Arquivo JSON (`clientes_mock.json`) com dados de clientes, contratos, dívidas e prazos.       |
-| **Validação**            | Regras de negócio e instruções de sistema para evitar alucinações e proteger dados sensíveis. |
+| **Validação** | Regras de negócio e instruções de sistema para evitar alucinações e proteger dados sensíveis. |
 
 ## 4. Segurança e Anti-Alucinação
 
