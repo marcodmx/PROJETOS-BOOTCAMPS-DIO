@@ -2,78 +2,42 @@ import gradio as gr
 from core.database import buscar_cliente_por_cpf
 from core.engine import AgenteNegociador
 
-# Inicializa o motor de negociação
 agente = AgenteNegociador()
 
-# CSS moderno para o portal
 MEU_CSS = """
-.gradio-container { background-color: #f7fafc !important; }
-.main-header { text-align: center; color: #2c5282; font-weight: bold; margin-bottom: 10px; }
+.gradio-container { background-color: #f7fafc !important; font-family: 'Inter', sans-serif; }
+.main-header { text-align: center; color: #2c5282; font-weight: 800; }
 """
 
-# ==========================================================
-# Funções auxiliares
-# ==========================================================
 def limpar_historico_para_ia(historico_gradio):
-    """
-    Filtra apenas role e content para evitar erro de metadata na Groq.
-    """
-    if not historico_gradio:
-        return []
-    return [
-        {"role": msg["role"], "content": msg["content"]}
-        for msg in historico_gradio
-        if "role" in msg and "content" in msg
-    ]
+    if not historico_gradio: return []
+    # Mantém apenas a conversa pura para a IA não se confundir com metadados
+    return [{"role": m["role"], "content": m["content"]} for m in historico_gradio]
 
 def responder_chat(mensagem, historico, cpf_com_mascara):
     if not mensagem:
         return historico, ""
 
-    # --- MAPEAMENTO DE OPÇÕES NUMÉRICAS ---
-    # Isso evita que a IA responda "não entendi" quando o usuário digita apenas o número
-    opcoes = {
-        "1": "Eu aceito a proposta de quitação à vista. Como procedo?",
-        "2": "Eu aceito a proposta de parcelamento. Como procedo?",
-        "3": "Não concordo com os valores. Gostaria de rejeitar as propostas e buscar outras opções.",
-        "4": "Gostaria de tirar dúvidas ou saber mais detalhes antes de decidir."
-    }
-    
-    # Se for um número mapeado, usamos o texto longo, senão usamos a mensagem original
-    mensagem_para_ia = opcoes.get(mensagem.strip(), mensagem)
-
     cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     
-    if not cliente:
-        return historico, ""
+    if historico is None: historico = []
     
-    if historico is None:
-        historico = []
-    
-    # 1. Prepara o histórico limpo para a API
+    # 1. Preparação: A IA recebe o histórico completo para ter contexto
     historico_ia = limpar_historico_para_ia(historico)
 
+    # 2. Processamento: A IA interpreta a intenção (seja "1", "quero pagar" ou "tá caro")
     try:
-        # 2. Lógica de resposta baseada na mensagem processada
-        if "🔍 Verificar Ofertas" in mensagem:
-            comando = "Gere uma proposta de quitação à vista e uma de parcelamento"
-            res = agente.responder(comando, str(cliente), historico_ia)
-        elif "✅ Já efetuei o pagamento" in mensagem:
-            res = "✍️ **Aviso de pagamento registrado!** O prazo para baixa bancária é de até 72h úteis. Guarde seu comprovante."
-        elif "🚪 Encerrar" in mensagem:
-            res = "A RenovaIA agradece seu contato. Sua sessão foi encerrada. Até breve! 👋"
-        else:
-            # Envia a mensagem (ou a opção mapeada) para a IA
-            res = agente.responder(mensagem_para_ia, str(cliente), historico_ia)
-            
+        # Passamos a mensagem bruta. O "cérebro" da IA no engine.py decide o que fazer.
+        res = agente.responder(mensagem, str(cliente), historico_ia)
+        
         if not res:
-            res = "Desculpe, não consegui processar sua solicitação agora. Pode repetir de outra forma?"
-
+            res = "🤔 Notei um silêncio por aqui... Pode me contar melhor o que você achou das opções?"
+            
     except Exception as e:
-        res = f"⚠️ Erro ao processar resposta: {str(e)}"
+        res = f"🤔 Tive um pequeno descompasso técnico. Vamos tentar de novo? (Erro: {str(e)})"
     
-    # 3. Atualiza o histórico visual do Gradio
+    # 3. Atualização visual
     historico.append({"role": "user", "content": mensagem})
     historico.append({"role": "assistant", "content": res})
     
@@ -85,39 +49,28 @@ def validar_e_entrar(cpf_com_mascara):
     
     if cliente:
         nome = cliente['nome'].split()[0]
-        msg_inicial = [{"role": "assistant", "content": f"✨ **Olá, {nome}!** Sou seu consultor virtual RenovaIA. Como posso ajudar com sua saúde financeira hoje?"}]
+        # A primeira mensagem já dita o tom "Nubank + Bradesco"
+        msg_inicial = [{"role": "assistant", "content": f"👋 Olá, {nome}! Sou seu consultor RenovaIA.\n\nVi que você tem uma pendência conosco. Meu papel é facilitar sua vida e encontrar um caminho que caiba no seu bolso, com total segurança. Como você prefere começar?"}]
         return gr.update(visible=False), gr.update(visible=True), msg_inicial, ""
     
-    return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não identificado. Tente novamente."
+    return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não identificado."
 
-# ==========================================================
-# Função principal de criação da interface
-# ==========================================================
 def criar_interface():
     with gr.Blocks(title="RenovaIA") as demo:
-        # Tela de login
         with gr.Column(visible=True) as tela_login:
             gr.Markdown("# 🏦 Portal RenovaIA", elem_classes="main-header")
-            cpf_input = gr.Textbox(label="Informe seu CPF", placeholder="000.000.000-00")
-            btn_entrar = gr.Button("ACESSAR MEU PAINEL", variant="primary")
+            cpf_input = gr.Textbox(label="CPF", placeholder="000.000.000-00")
+            btn_entrar = gr.Button("ACESSAR PAINEL", variant="primary")
             status = gr.Markdown("")
 
-        # Tela de chat
         with gr.Column(visible=False) as tela_chat:
-            gr.Markdown("## 💬 Atendimento Digital")
-            chatbot = gr.Chatbot(label="RenovaIA", height=550)
+            gr.Markdown("## ✨ Negociação Consciente")
+            chatbot = gr.Chatbot(label="Atendimento RenovaIA", height=500)
             
             with gr.Row():
-                txt_msg = gr.Textbox(placeholder="Digite sua mensagem ou o número da opção...", scale=8, show_label=False)
+                txt_msg = gr.Textbox(placeholder="Sua resposta aqui...", scale=8, show_label=False)
                 btn_send = gr.Button("Enviar", variant="primary", scale=2)
-            
-            gr.Examples(
-                examples=["🔍 Verificar Ofertas", "✅ Já efetuei o pagamento", "🚪 Encerrar"], 
-                inputs=txt_msg,
-                label="Ações Rápidas"
-            )
 
-        # Ações dos botões
         btn_entrar.click(validar_e_entrar, [cpf_input], [tela_login, tela_chat, chatbot, status])
         btn_send.click(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
         txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
