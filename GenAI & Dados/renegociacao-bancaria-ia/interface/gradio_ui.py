@@ -10,21 +10,8 @@ TITULOS_IA = ["✨ Sua Jornada Financeira", "🚀 Rumo ao Azul", "🤝 Vamos res
 MEU_CSS = """
 .gradio-container { background-color: #f1f5f9 !important; font-family: 'Inter', sans-serif; }
 .main-header { text-align: center; color: #1e3a8a; font-weight: 800; padding: 20px; font-size: 28px; }
-.prose pre {
-    background-color: #ffffff !important;
-    border: 2px dashed #cbd5e1 !important;
-    color: #0f172a !important;
-    padding: 15px !important;
-    border-radius: 10px !important;
-}
-.prose code { font-family: 'Courier New', monospace !important; font-weight: bold !important; font-size: 1.1em !important; }
-span[style*="color: #1e40af"] {
-    background-color: #dbeafe;
-    padding: 2px 8px;
-    border-radius: 6px;
-    border: 1px solid #bfdbfe;
-    font-weight: bold;
-}
+.prose pre { background-color: #ffffff !important; border: 2px dashed #cbd5e1 !important; padding: 15px !important; border-radius: 10px; }
+span[style*="color: #1e40af"] { background-color: #dbeafe; padding: 2px 8px; border-radius: 6px; font-weight: bold; }
 """
 
 def validar_e_entrar(cpf_com_mascara):
@@ -38,7 +25,7 @@ def validar_e_entrar(cpf_com_mascara):
         dividas = cliente.get('dividas', [])
         produto = dividas[0].get('produto', 'crédito') if dividas else "crédito"
         
-        msg_inicial = [{"role": "assistant", "content": f"👋 Olá, {nome}! Identificamos uma oportunidade de liquidação para seu **{produto}**. Como podemos avançar hoje?"}]
+        msg_inicial = [{"role": "assistant", "content": f"👋 Olá, {nome}! Encontrei uma proposta de liquidação para seu **{produto}**. Vamos conversar sobre as condições?"}]
         return gr.update(visible=False), gr.update(visible=True), msg_inicial, ""
     
     return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não encontrado."
@@ -60,7 +47,6 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
     historico = historico or []
     resposta_ia = agente.responder(mensagem, str(contexto), historico)
     
-    # Garantia de que a resposta no histórico seja string
     if isinstance(resposta_ia, dict): resposta_ia = resposta_ia.get('text', str(resposta_ia))
 
     historico.append({"role": "user", "content": str(mensagem)})
@@ -88,6 +74,7 @@ def criar_interface():
 
             with gr.Row():
                 btn_oferta = gr.Button("🔍 Ver Detalhes", size="sm")
+                # MUDANÇA AQUI: O botão agora provoca o fechamento
                 btn_boleto = gr.Button("📄 Gerar Boleto", size="sm")
                 btn_sair = gr.Button("Sair 🚪", size="sm", variant="secondary")
 
@@ -96,7 +83,10 @@ def criar_interface():
         txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
         
         btn_oferta.click(lambda h, c: responder_chat("Quais os detalhes da oferta?", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
-        btn_boleto.click(lambda h, c: responder_chat("Pode gerar o boleto agora?", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
+        
+        # LÓGICA DO BOTÃO: Solicita fechamento antes de emitir
+        btn_boleto.click(lambda h, c: responder_chat("Eu aceito a proposta. Pode gerar o boleto para mim?", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
+        
         btn_sair.click(lambda: (gr.update(visible=True), gr.update(visible=False), None, ""), None, [tela_login, tela_chat, chatbot, status_login])
 
     return demo
