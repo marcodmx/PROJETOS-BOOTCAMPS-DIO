@@ -49,3 +49,9 @@ cd "GenAI & Dados/renegociacao-bancaria-ia"
 
 # 3. Instale as dependências necessárias:
 pip install -r requirements.txt
+```
+
+
+
+### 📄 Licença e Autoria
+Projeto desenvolvido por **Marco Garcia** como parte do desafio prático no **Bootcamp Bradesco - Geração de IA e Dados** na plataforma **DIO**.
