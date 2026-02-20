@@ -1,2 +1,1 @@
-touch core/__init__.py
-touch interface/__init__.py
+# Pacote core do projeto RenovaIA
