@@ -11,23 +11,25 @@ MEU_CSS = """
 .gradio-container { background-color: #f8fafc !important; font-family: 'Inter', sans-serif; }
 .main-header { text-align: center; color: #0f172a; font-weight: 800; font-size: 32px; padding: 20px; }
 .action-btn { font-weight: 700 !important; margin-bottom: 12px !important; }
-.btn-sair { max-width: 100px !important; min-width: 100px !important; height: 40px !important; }
 
-/* Estilo para valores destacados via SPAN */
+/* Estilo para valores destacados */
 span[style*="font-size: 20px"] {
     background-color: #eff6ff;
     padding: 2px 6px;
     border-radius: 4px;
 }
 
-/* Bloco de Código (Boleto) Acessível */
-code { 
-    font-size: 18px !important; 
-    color: #1e293b !important;
+/* Customização do Bloco de Código e Botão de Copiar do Gradio */
+.prose pre {
     background-color: #f1f5f9 !important;
-    border: 1px solid #e2e8f0 !important;
-    padding: 12px !important;
-    display: block !important;
+    border: 2px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    padding: 10px !important;
+}
+.prose code {
+    font-size: 18px !important;
+    color: #1e293b !important;
+    font-family: 'Courier New', monospace !important;
 }
 """
 
@@ -50,7 +52,7 @@ def validar_e_entrar(cpf_com_mascara):
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     if cliente:
         nome = cliente['nome'].split()[0]
-        msg = [{"role": "assistant", "content": f"👋 Oi, {nome}! Vamos colocar suas contas em dia?"}]
+        msg = [{"role": "assistant", "content": f"👋 Oi, {nome}! Vamos resolver suas pendências?"}]
         return gr.update(visible=False), gr.update(visible=True), msg, ""
     return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não identificado."
 
@@ -67,7 +69,7 @@ def criar_interface():
                 with gr.Column(scale=8):
                     gr.Markdown(f"## {titulo_sessao}")
                 with gr.Column(scale=1, min_width=100):
-                    btn_sair = gr.Button("Sair 🚪", variant="secondary", elem_classes="btn-sair")
+                    btn_sair = gr.Button("Sair 🚪", variant="secondary")
 
             with gr.Row():
                 with gr.Column(scale=4):
@@ -91,7 +93,7 @@ def criar_interface():
         # Cliques Rápidos
         btn_ofertas.click(lambda h, c: responder_chat("Quais são minhas ofertas e o CET?", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
         btn_desc.click(lambda h, c: responder_chat("Quero um desconto maior!", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
-        btn_boleto.click(lambda h, c: responder_chat("Me mande o código do boleto para pagar.", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
+        btn_boleto.click(lambda h, c: responder_chat("Me mande o código do boleto para pagar agora.", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
         btn_ajuda.click(lambda h, c: responder_chat("Preciso de suporte.", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
 
     return demo
