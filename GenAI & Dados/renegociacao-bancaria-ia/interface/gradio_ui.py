@@ -6,12 +6,11 @@ agente = AgenteNegociador()
 
 MEU_CSS = """
 .gradio-container { background-color: #f7fafc !important; font-family: 'Inter', sans-serif; }
-.main-header { text-align: center; color: #2c5282; font-weight: 800; }
+.main-header { text-align: center; color: #2c5282; font-weight: 800; font-size: 24px; padding: 20px; }
 """
 
 def limpar_historico_para_ia(historico_gradio):
     if not historico_gradio: return []
-    # Mantém apenas a conversa pura para a IA não se confundir com metadados
     return [{"role": m["role"], "content": m["content"]} for m in historico_gradio]
 
 def responder_chat(mensagem, historico, cpf_com_mascara):
@@ -22,22 +21,20 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     
     if historico is None: historico = []
-    
-    # 1. Preparação: A IA recebe o histórico completo para ter contexto
     historico_ia = limpar_historico_para_ia(historico)
 
-    # 2. Processamento: A IA interpreta a intenção (seja "1", "quero pagar" ou "tá caro")
     try:
-        # Passamos a mensagem bruta. O "cérebro" da IA no engine.py decide o que fazer.
+        # A IA interpreta a intenção e decide se é hora de mandar o boleto
         res = agente.responder(mensagem, str(cliente), historico_ia)
         
-        if not res:
-            res = "🤔 Notei um silêncio por aqui... Pode me contar melhor o que você achou das opções?"
-            
+        # Reforço visual de empatia se houver fechamento
+        if "```" in res:
+            if "📧" not in res: # Evita duplicar se a IA já escreveu
+                res += "\n\n📧 **Acabei de enviar o boleto completo e o comprovante para o seu e-mail.**\n\nFique tranquilo, agora é com a gente. Vai dar tudo certo! 😊 🙌"
+
     except Exception as e:
-        res = f"🤔 Tive um pequeno descompasso técnico. Vamos tentar de novo? (Erro: {str(e)})"
+        res = f"🤔 Algo deu errado por aqui. Vamos tentar de novo? (Erro: {str(e)})"
     
-    # 3. Atualização visual
     historico.append({"role": "user", "content": mensagem})
     historico.append({"role": "assistant", "content": res})
     
@@ -49,27 +46,33 @@ def validar_e_entrar(cpf_com_mascara):
     
     if cliente:
         nome = cliente['nome'].split()[0]
-        # A primeira mensagem já dita o tom "Nubank + Bradesco"
-        msg_inicial = [{"role": "assistant", "content": f"👋 Olá, {nome}! Sou seu consultor RenovaIA.\n\nVi que você tem uma pendência conosco. Meu papel é facilitar sua vida e encontrar um caminho que caiba no seu bolso, com total segurança. Como você prefere começar?"}]
+        msg_inicial = [{"role": "assistant", "content": f"👋 Oi, {nome}! Sou seu consultor RenovaIA.\n\nEstou aqui para te ajudar a resolver suas pendências de um jeito simples e sem burocracia. Vamos ver o que conseguimos hoje? ✨"}]
         return gr.update(visible=False), gr.update(visible=True), msg_inicial, ""
     
-    return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não identificado."
+    return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não identificado. Tente novamente, por favor."
 
 def criar_interface():
     with gr.Blocks(title="RenovaIA") as demo:
         with gr.Column(visible=True) as tela_login:
             gr.Markdown("# 🏦 Portal RenovaIA", elem_classes="main-header")
-            cpf_input = gr.Textbox(label="CPF", placeholder="000.000.000-00")
-            btn_entrar = gr.Button("ACESSAR PAINEL", variant="primary")
+            cpf_input = gr.Textbox(label="Digite seu CPF", placeholder="000.000.000-00")
+            btn_entrar = gr.Button("CONFERIR MINHAS OPÇÕES", variant="primary")
             status = gr.Markdown("")
 
         with gr.Column(visible=False) as tela_chat:
-            gr.Markdown("## ✨ Negociação Consciente")
-            chatbot = gr.Chatbot(label="Atendimento RenovaIA", height=500)
+            gr.Markdown("## ✨ Atendimento Personalizado")
+            # Adicionado suporte a avatar para ficar mais humano
+            chatbot = gr.Chatbot(label="Consultor Digital", height=500, type="messages")
             
             with gr.Row():
-                txt_msg = gr.Textbox(placeholder="Sua resposta aqui...", scale=8, show_label=False)
+                txt_msg = gr.Textbox(placeholder="Digite sua mensagem ou escolha uma opção...", scale=8, show_label=False)
                 btn_send = gr.Button("Enviar", variant="primary", scale=2)
+            
+            gr.Examples(
+                examples=["🔍 Quais são minhas ofertas?", "Aceito a quitação à vista", "✅ Já paguei"], 
+                inputs=txt_msg,
+                label="Sugestões"
+            )
 
         btn_entrar.click(validar_e_entrar, [cpf_input], [tela_login, tela_chat, chatbot, status])
         btn_send.click(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
