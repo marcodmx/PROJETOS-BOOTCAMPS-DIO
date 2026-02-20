@@ -12,24 +12,22 @@ MEU_CSS = """
 .main-header { text-align: center; color: #0f172a; font-weight: 800; font-size: 32px; padding: 20px; }
 .action-btn { font-weight: 700 !important; margin-bottom: 12px !important; }
 
-/* Estilo para valores destacados */
 span[style*="font-size: 20px"] {
     background-color: #eff6ff;
     padding: 2px 6px;
     border-radius: 4px;
 }
 
-/* Customização do Bloco de Código e Botão de Copiar do Gradio */
 .prose pre {
     background-color: #f1f5f9 !important;
     border: 2px solid #e2e8f0 !important;
     border-radius: 8px !important;
     padding: 10px !important;
+    position: relative;
 }
 .prose code {
     font-size: 18px !important;
     color: #1e293b !important;
-    font-family: 'Courier New', monospace !important;
 }
 """
 
@@ -37,12 +35,9 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
     if not mensagem: return historico, ""
     cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
     cliente = buscar_cliente_por_cpf(cpf_limpo)
-    
     historico = historico or []
     historico_ia = [{"role": m["role"], "content": m["content"]} for m in historico]
-
     res = agente.responder(mensagem, str(cliente), historico_ia)
-    
     historico.append({"role": "user", "content": mensagem})
     historico.append({"role": "assistant", "content": res})
     return historico, ""
@@ -90,10 +85,9 @@ def criar_interface():
         btn_send.click(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
         txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
 
-        # Cliques Rápidos
         btn_ofertas.click(lambda h, c: responder_chat("Quais são minhas ofertas e o CET?", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
-        btn_desc.click(lambda h, c: responder_chat("Quero um desconto maior!", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
-        btn_boleto.click(lambda h, c: responder_chat("Me mande o código do boleto para pagar agora.", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
+        btn_desc.click(lambda h, c: responder_chat("Quero um desconto maior que R$ 1.850!", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
+        btn_boleto.click(lambda h, c: responder_chat("Me mande o código do boleto.", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
         btn_ajuda.click(lambda h, c: responder_chat("Preciso de suporte.", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
 
     return demo
