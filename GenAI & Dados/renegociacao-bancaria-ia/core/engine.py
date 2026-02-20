@@ -9,14 +9,14 @@ class AgenteNegociador:
 
     def responder(self, prompt_user, contexto_cliente, historico_formatado):
         system_msg = (
-            "Você é o Facilitador Estratégico do Banco RenovaIA S.A. "
-            "Responda SEMPRE em texto direto, sem envolver em dicionários ou listas.\n\n"
-            "DIRETRIZES:\n"
-            "- NUNCA use: 'dívida', 'atraso' ou 'pendência'.\n"
-            "- CET: 14.5% a.a. | Baixa: 3 dias úteis.\n"
-            "- VALORES: Use SEMPRE <span style='font-size: 20px; color: #1e40af; font-weight: bold;'>R$ X.XXX,XX</span>.\n"
-            "- BOLETO: Código SOZINHO em bloco de código (```).\n\n"
-            f"CONTEXTO DO CLIENTE: {contexto_cliente}"
+            "Você é o Facilitador Estratégico do Banco RenovaIA S.A. Seu tom é resolutivo, empático e profissional."
+            "\n\nREGRAS DE OURO:"
+            "\n1. NÃO REPITA informações que já estão no histórico recente (como valores ou códigos de boleto), a menos que o cliente peça explicitamente."
+            "\n2. NEGOCIAÇÃO: Se o cliente propuser um valor abaixo da 'oferta_vista', diga que precisa de 30 segundos para consultar o 'Comitê de Crédito' (simule uma pausa dramática no texto)."
+            "\n3. BOLETO: Quando solicitado, envie APENAS o código dentro de um bloco de código Markdown. Exemplo:"
+            "\n```\n00000.00000 00000.000000 00000.000000 0 00000000000000\n```"
+            "\n4. ESTILO: Use <span style='font-size: 20px; color: #1e40af; font-weight: bold;'>R$ X.XXX,XX</span> para valores."
+            f"\n\nCONTEXTO ATUAL: {contexto_cliente}"
         )
 
         messages = [{"role": "system", "content": system_msg}]
@@ -24,11 +24,9 @@ class AgenteNegociador:
         if historico_formatado:
             for msg in historico_formatado:
                 if isinstance(msg, dict) and "role" in msg and "content" in msg:
-                    # Garantimos que o conteúdo seja apenas a string de texto
-                    content = msg["content"]
-                    if isinstance(content, list): # Evita o erro de vir lista do Gradio
-                        content = content[0] if content else ""
-                    messages.append({"role": msg["role"], "content": str(content)})
+                    # Limpeza de metadados para evitar Erro 400
+                    clean_content = msg["content"][0] if isinstance(msg["content"], list) else msg["content"]
+                    messages.append({"role": msg["role"], "content": str(clean_content)})
         
         messages.append({"role": "user", "content": str(prompt_user)})
 
@@ -36,18 +34,10 @@ class AgenteNegociador:
             completion = self.client.chat.completions.create(
                 model=self.model_id,
                 messages=messages,
-                temperature=0.3, # Aumentei um tiquinho para ela ser mais persuasiva
-                max_tokens=800
+                temperature=0.4, # Aumentado para respostas menos robóticas
+                max_tokens=700
             )
-            resposta = completion.choices[0].message.content
-            # Limpeza de segurança caso a IA tente retornar um dicionário como string
-            if resposta.startswith("{'text'"):
-                 import ast
-                 try:
-                     res_dict = ast.literal_eval(resposta)
-                     return res_dict[0]['text'] if isinstance(res_dict, list) else res_dict['text']
-                 except: pass
-            return resposta
+            return completion.choices[0].message.content
         except Exception as e:
             print(f"🚨 Erro Groq: {e}")
-            return "⚠️ Tive um pequeno desencontro técnico. Pode repetir?"
+            return "⚠️ Tive um desencontro técnico. Pode repetir a última frase?"
