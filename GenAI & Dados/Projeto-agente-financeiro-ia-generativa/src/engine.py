@@ -1,77 +1,75 @@
 import os
 import time
+from groq import Groq
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
 
+# Carrega as variáveis de ambiente do arquivo .env
 load_dotenv()
 
 class AgenteNegociador:
+    """
+    Classe responsável pela inteligência de negociação via Groq Cloud.
+    Substitui integralmente o motor anterior (Gemini).
+    """
     def __init__(self):
-        api_key = os.getenv("GOOGLE_API_KEY")
-        if not api_key:
-            raise ValueError("Chave de API (GOOGLE_API_KEY) não configurada.")
+        # Recupera a chave de API específica da Groq
+        self.api_key = os.getenv("GROQ_API_KEY")
+        if not self.api_key:
+            raise ValueError("Erro Crítico: Variável GROQ_API_KEY não configurada no ambiente.")
         
-        self.client = genai.Client(api_key=api_key)
-        self.model_id = None
-
-        try:
-            # Lista os modelos e imprime para diagnóstico no console do Colab
-            modelos = list(self.client.models.list())
-            print("--- MODELOS DETECTADOS NA CONTA ---")
-            for m in modelos:
-                print(f"ID Original: {m.name}")
-            
-            # Filtra apenas o ID final (ex: de 'models/gemini-1.5-flash' para 'gemini-1.5-flash')
-            # Isso resolve o erro 404 em muitas versões do SDK novo
-            ids_limpos = {m.name.split("/")[-1]: m.name for m in modelos}
-            
-            # Prioridade de seleção
-            if "gemini-2.0-flash" in ids_limpos:
-                self.model_id = "gemini-2.0-flash"
-            elif "gemini-1.5-flash" in ids_limpos:
-                self.model_id = "gemini-1.5-flash"
-            else:
-                # Tenta pegar qualquer um que contenha 'flash' como última alternativa
-                for clean_id in ids_limpos.keys():
-                    if "flash" in clean_id:
-                        self.model_id = clean_id
-                        break
-
-            if self.model_id:
-                print(f"--- MOTOR SELECIONADO: {self.model_id} ---")
-            else:
-                self.model_id = "gemini-1.5-flash"
-                print("Aviso: Utilizando ID padrão por falta de correspondência na lista.")
-
-        except Exception as e:
-            print(f"Erro na inicialização: {e}")
-            self.model_id = "gemini-1.5-flash"
+        # Inicializa o cliente Groq
+        self.client = Groq(api_key=self.api_key)
+        
+        # Define o modelo estável (Llama 3.1 8B é o melhor custo-benefício em cota gratuita)
+        self.model_id = "llama-3.1-8b-instant"
+        
+        print(f"--- SISTEMA INICIALIZADO ---")
+        print(f"✅ Motor Ativo: {self.model_id}")
 
     def responder(self, mensagem, dados_cliente, historico_formatado):
+        """
+        Envia a mensagem para a Groq e retorna a proposta de negociação.
+        """
+        # Instrução de sistema fixa e direta
         prompt_sistema = (
-            f"Você é o consultor especializado da RenovaIA. Dados do cliente: {dados_cliente}. "
-            "DIRETRIZES: "
-            "1. Cordialidade e empatia. "
-            "2. Em propostas à vista, cite o Art. 52, § 2º do CDC: o cliente tem direito legal "
-            "à liquidação antecipada com redução proporcional dos juros. "
-            "3. Em parcelamentos, aplique CET de 1.99% a.m. "
-            "4. Formatação: Use tabelas Markdown para comparar À Vista vs. Parcelado."
+            f"Você é o consultor financeiro da RenovaIA. "
+            f"Dados atuais do cliente: {dados_cliente}. "
+            "OBJETIVO: Negociar dívidas de forma empática e profissional. "
+            "REGRAS: "
+            "1. Propostas à vista devem ter o maior desconto possível. "
+            "2. Propostas parceladas devem usar taxa de 1.99% a.m. "
+            "3. Apresente as opções de pagamento obrigatoriamente em tabelas Markdown. "
+            "4. Seja conciso e evite termos jurídicos complexos."
         )
+
+        # Montagem do payload de mensagens no padrão Groq/OpenAI
+        mensagens = [{"role": "system", "content": prompt_sistema}]
         
+        # Adiciona o histórico de conversa recebido
+        for turno in historico_formatado:
+            mensagens.append(turno)
+        
+        # Adiciona a interação atual do usuário
+        mensagens.append({"role": "user", "content": mensagem})
+
         try:
-            # O SDK novo costuma aceitar o model_id sem o prefixo 'models/'
-            response = self.client.models.generate_content(
+            # Chamada de inferência
+            completion = self.client.chat.completions.create(
                 model=self.model_id,
-                config=types.GenerateContentConfig(
-                    system_instruction=prompt_sistema,
-                    temperature=0.2
-                ),
-                contents=historico_formatado + [
-                    types.Content(role="user", parts=[types.Part(text=mensagem)])
-                ]
+                messages=mensagens,
+                temperature=0.2, # Baixa temperatura para respostas financeiras precisas
+                max_tokens=1024,
+                top_p=1,
+                stream=False
             )
-            return response.text if response.text else "Erro: Resposta vazia da API."
+            
+            # Retorna o conteúdo da resposta
+            return completion.choices[0].message.content
+
         except Exception as e:
-            print(f"Erro detalhado na chamada: {e}")
-            return f"🚨 Erro no processamento: {str(e)[:50]}"
+            msg_erro = str(e).lower()
+            if "rate_limit" in msg_erro or "429" in msg_erro:
+                return "⚠️ **Limite de requisições atingido na Groq.** Por favor, aguarde 30 segundos e tente novamente."
+            
+            print(f"Erro técnico Groq: {e}")
+            return f"🚨 Ocorreu um erro na comunicação com o motor de IA: {str(e)[:50]}"
