@@ -1,11 +1,11 @@
-# app.py
-from interface.gradio_ui import criar_interface
+from interface.gradio_ui import criar_interface, MEU_CSS
 
 # ==========================================================
 # Criação da interface
 # ==========================================================
-demo = criar_interface()  # variável global para importação
+# Criamos a interface chamando a função do arquivo gradio_ui.py
+demo = criar_interface()
 
 if __name__ == "__main__":
-    # Lança a interface apenas quando rodar app.py diretamente
-    demo.launch()
+    # Lançamos com o CSS aqui para evitar o Warning do Gradio e share=True para o Colab
+    demo.launch(css=MEU_CSS, share=True)
