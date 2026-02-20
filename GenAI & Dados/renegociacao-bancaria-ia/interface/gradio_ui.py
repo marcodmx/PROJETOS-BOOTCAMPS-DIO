@@ -33,7 +33,7 @@ def validar_e_entrar(cpf_com_mascara):
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     if cliente:
         nome = cliente['nome'].split()[0]
-        msg = [{"role": "assistant", "content": f"👋 Oi, {nome}! Vamos colocar suas contas em dia hoje?"}]
+        msg = [{"role": "assistant", "content": f"👋 Oi, {nome}! Vamos resolver suas pendências hoje?"}]
         return gr.update(visible=False), gr.update(visible=True), msg, ""
     return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não identificado."
 
@@ -48,7 +48,6 @@ def criar_interface():
 
         with gr.Column(visible=False) as tela_chat:
             with gr.Row():
-                # CORREÇÃO: Removido 'scale' do Markdown. Usamos Column para dar proporção.
                 with gr.Column(scale=8):
                     gr.Markdown(f"## {titulo_sessao}")
                 with gr.Column(scale=1, min_width=100):
@@ -68,17 +67,16 @@ def criar_interface():
                     btn_boleto = gr.Button("📄 2ª Via", elem_classes="action-btn")
                     btn_ajuda = gr.Button("🆘 Suporte", elem_classes="action-btn")
 
-        # EVENTOS
         btn_entrar.click(validar_e_entrar, [cpf_input], [tela_login, tela_chat, chatbot, status])
         btn_sair.click(lambda: (gr.update(visible=True), gr.update(visible=False), None, ""), None, [tela_login, tela_chat, chatbot, status])
         
         btn_send.click(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
         txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
 
-        # Ações Rápidas - Agora enviando a mensagem correta ao chat
+        # AÇÕES RÁPIDAS CORRIGIDAS
         btn_ofertas.click(lambda h, c: responder_chat("Quais são minhas ofertas?", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
         btn_desc.click(lambda h, c: responder_chat("Quero um desconto maior!", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
-        btn_boleto.click(lambda h, c: responder_chat("Preciso do boleto.", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
-        btn_ajuda.click(lambda h, c: responder_chat("Como funciona o desconto de juros?", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
+        btn_boleto.click(lambda h, c: responder_chat("Preciso do código do boleto para pagar agora.", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
+        btn_ajuda.click(lambda h, c: responder_chat("Preciso de ajuda.", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
 
     return demo
