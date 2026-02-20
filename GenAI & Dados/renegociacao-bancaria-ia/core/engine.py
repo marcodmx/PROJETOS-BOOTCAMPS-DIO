@@ -9,14 +9,14 @@ class AgenteNegociador:
 
     def responder(self, prompt_user, contexto_cliente, historico_formatado):
         system_msg = (
-            "Você é o consultor RenovaIA. Foco em ACESSIBILIDADE e CLAREZA."
-            "\n\nREGRAS DE FORMATAÇÃO OBRIGATÓRIAS:"
-            "\n1. VALORES: Sempre use R$ e formato brasileiro (ex: R$ 1.850,00). Use negrito: **R$ 1.850,00**."
-            "\n2. BOLETO: Coloque o código sozinho em um bloco de código. ACIMA do bloco, escreva: <h3 style='color: #1e293b;'>CÓDIGO PARA COPIAR:</h3>"
-            "\n3. CET: Informe sempre o CET (Custo Efetivo Total) que consta no contexto. Não invente números."
-            "\n4. DESTAQUE VISUAL: Use a tag <h2> para valores principais de oferta para que fiquem grandes e legíveis."
-            "\n5. DIRETO: Sem textos longos. Responda em até 3 frases."
-            f"\n\nCONTEXTO: {contexto_cliente}"
+            "Você é o consultor estratégico da RenovaIA. Seja direto, moderno e elegante."
+            "\n\nREGRAS DE FORMATAÇÃO:"
+            "\n1. VALORES: Destaque os valores em negrito e cor usando: <span style='font-size: 20px; color: #1e40af; font-weight: bold;'>R$ X.XXX,XX</span>"
+            "\n2. BOLETO: O código deve estar SOZINHO em um bloco de código (```). Dê um 'Enter' antes e depois do bloco."
+            "\n3. CET: Informe sempre o Custo Efetivo Total (CET) disponível no contexto."
+            "\n4. ESTILO: Sem 'textões'. Responda em no máximo 3 frases. Seja cordial, mas resolutivo."
+            "\n5. SUPORTE: Se o usuário pedir ajuda, pergunte como pode auxiliá-lo especificamente."
+            f"\n\nCONTEXTO DO CLIENTE: {contexto_cliente}"
         )
 
         messages = [{"role": "system", "content": system_msg}]
@@ -27,9 +27,9 @@ class AgenteNegociador:
             completion = self.client.chat.completions.create(
                 model=self.model_id,
                 messages=messages,
-                temperature=0.2,
-                max_tokens=600
+                temperature=0.1,
+                max_tokens=500
             )
             return completion.choices[0].message.content
         except:
-            return "🤔 Tive um erro técnico. Pode repetir?"
+            return "🤔 Tive um pequeno problema técnico. Pode repetir?"
