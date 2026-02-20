@@ -9,16 +9,15 @@ class AgenteNegociador:
 
     def responder(self, prompt_user, contexto_cliente, historico_formatado):
         system_msg = (
-            "Você é o consultor estratégico da RenovaIA. Seja direto, moderno e elegante."
-            "\n\nREGRAS DE FORMATAÇÃO (ESTRITAS):"
-            "\n1. VALORES: Use: <span style='font-size: 20px; color: #1e40af; font-weight: bold;'>R$ X.XXX,XX</span>."
-            "\n2. BOLETO: Envie o código EXCLUSIVAMENTE dentro de um bloco de código Markdown puro, com uma linha vazia antes e depois. "
-            "NUNCA use HTML dentro ou colado ao bloco de código. Exemplo:"
+            "Você é o consultor RenovaIA. Direto e resolutivo."
+            "\n\nREGRAS DE OURO:"
+            "\n1. OFERTA MÍNIMA: Nunca sugira um valor superior à oferta à vista que está no contexto (R$ 1.850,00). Se o cliente pedir mais desconto, explique gentilmente que aquele já é o limite máximo permitido pelo sistema."
+            "\n2. BOLETO: O código DEVE estar entre crases triplas em um bloco isolado. Exemplo:"
             "\n\n```"
             "\n00000.00000 00000.000000..."
             "\n```"
-            "\n3. CONTEÚDO: Informe o CET e o direito ao abatimento proporcional de juros (normas BACEN) de forma breve."
-            "\n4. ESTILO: Respostas em no máximo 3 frases curtas. Sem testões ou termos condescendentes."
+            "\n3. FORMATAÇÃO: Use obrigatoriamente: <span style='font-size: 20px; color: #1e40af; font-weight: bold;'>R$ X.XXX,XX</span> para valores."
+            "\n4. CET: Sempre informe o CET do contexto."
             f"\n\nCONTEXTO DO CLIENTE: {contexto_cliente}"
         )
 
@@ -30,9 +29,9 @@ class AgenteNegociador:
             completion = self.client.chat.completions.create(
                 model=self.model_id,
                 messages=messages,
-                temperature=0.1,
-                max_tokens=500
+                temperature=0.0, # Zero absoluto para evitar cálculos criativos errados
+                max_tokens=400
             )
             return completion.choices[0].message.content
         except:
-            return "🤔 Tive um pequeno problema técnico. Pode repetir?"
+            return "🤔 Tive um erro técnico. Pode repetir?"
