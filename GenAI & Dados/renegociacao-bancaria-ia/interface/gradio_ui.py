@@ -5,29 +5,19 @@ from core.engine import AgenteNegociador
 
 agente = AgenteNegociador()
 
-# O dinamismo que eu tinha "esquecido" no churrasco:
 TITULOS_IA = ["✨ Sua Jornada Financeira", "🚀 Rumo ao Azul", "🤝 Vamos resolver?", "💎 Oportunidade Exclusiva"]
 
 MEU_CSS = """
 .gradio-container { background-color: #f1f5f9 !important; font-family: 'Inter', sans-serif; }
 .main-header { text-align: center; color: #1e3a8a; font-weight: 800; padding: 20px; font-size: 28px; }
-
-/* Bloco de Código (Boleto) Estilizado para Copiar/Colar */
 .prose pre {
     background-color: #ffffff !important;
     border: 2px dashed #cbd5e1 !important;
     color: #0f172a !important;
     padding: 15px !important;
     border-radius: 10px !important;
-    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
 }
-.prose code {
-    font-family: 'Courier New', monospace !important;
-    font-weight: bold !important;
-    font-size: 1.1em !important;
-}
-
-/* Destaque para valores financeiros */
+.prose code { font-family: 'Courier New', monospace !important; font-weight: bold !important; font-size: 1.1em !important; }
 span[style*="color: #1e40af"] {
     background-color: #dbeafe;
     padding: 2px 8px;
@@ -70,30 +60,30 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
     historico = historico or []
     resposta_ia = agente.responder(mensagem, str(contexto), historico)
     
+    # Garantia de que a resposta no histórico seja string
+    if isinstance(resposta_ia, dict): resposta_ia = resposta_ia.get('text', str(resposta_ia))
+
     historico.append({"role": "user", "content": str(mensagem)})
     historico.append({"role": "assistant", "content": str(resposta_ia)})
     
     return historico, ""
 
 def criar_interface():
-    # Sorteando o título para cada nova execução/sessão
     titulo_sessao = random.choice(TITULOS_IA)
     
-    with gr.Blocks(title="RenovaIA v2") as demo:
+    with gr.Blocks(title="RenovaIA Pro") as demo:
         with gr.Column(visible=True) as tela_login:
             gr.Markdown("# 🏦 Portal de Negociação", elem_classes="main-header")
-            cpf_input = gr.Textbox(label="Digite seu CPF para consultar ofertas", placeholder="000.000.000-00")
+            cpf_input = gr.Textbox(label="CPF", placeholder="000.000.000-00")
             btn_entrar = gr.Button("CONSULTAR OFERTAS", variant="primary")
             status_login = gr.Markdown("")
 
         with gr.Column(visible=False) as tela_chat:
-            # Aqui o dinamismo volta a brilhar!
             gr.Markdown(f"### {titulo_sessao}")
-            
             chatbot = gr.Chatbot(label="Atendimento", height=500)
             
             with gr.Row():
-                txt_msg = gr.Textbox(placeholder="Digite sua proposta ou dúvida...", scale=7, show_label=False)
+                txt_msg = gr.Textbox(placeholder="Digite sua mensagem...", scale=7, show_label=False)
                 btn_send = gr.Button("Enviar", variant="primary", scale=1)
 
             with gr.Row():
@@ -101,13 +91,12 @@ def criar_interface():
                 btn_boleto = gr.Button("📄 Gerar Boleto", size="sm")
                 btn_sair = gr.Button("Sair 🚪", size="sm", variant="secondary")
 
-        # EVENTOS
         btn_entrar.click(validar_e_entrar, [cpf_input], [tela_login, tela_chat, chatbot, status_login])
         btn_send.click(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
         txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
         
-        btn_oferta.click(lambda h, c: responder_chat("Pode me dar os detalhes da oferta?", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
-        btn_boleto.click(lambda h, c: responder_chat("Gere o boleto para mim agora, por favor.", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
+        btn_oferta.click(lambda h, c: responder_chat("Quais os detalhes da oferta?", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
+        btn_boleto.click(lambda h, c: responder_chat("Pode gerar o boleto agora?", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
         btn_sair.click(lambda: (gr.update(visible=True), gr.update(visible=False), None, ""), None, [tela_login, tela_chat, chatbot, status_login])
 
     return demo
