@@ -14,41 +14,45 @@ MEU_CSS = """
 .error-msg { color: #dc2626 !important; font-weight: 600 !important; text-align: center; margin-top: 10px; }
 span[style*="font-size: 20px"] { background-color: #eff6ff; padding: 2px 6px; border-radius: 4px; }
 .prose pre { background-color: #f1f5f9 !important; border: 2px solid #e2e8f0 !important; border-radius: 8px !important; padding: 12px !important; }
-.prose code { font-size: 18px !important; color: #1e293b !important; }
 """
 
 def validar_e_entrar(cpf_com_mascara):
     cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
     if len(cpf_limpo) != 11:
         return gr.update(visible=True), gr.update(visible=False), None, "### ⚠️ Atenção: Digite os 11 números do seu CPF."
+    
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     if cliente:
         nome = cliente.get('nome', 'Cliente').split()[0]
         dividas = cliente.get('dividas', [])
         produto = dividas[0].get('produto', 'crédito') if dividas else "crédito"
-        msg = [[None, f"👋 Olá, {nome}! Que bom ter você aqui. Encontrei uma excelente oportunidade para seu {produto}. Vamos conferir?"]]
-        return gr.update(visible=False), gr.update(visible=True), msg, ""
-    return gr.update(visible=True), gr.update(visible=False), None, "### ❌ Erro: CPF não localizado em nossa base."
+        
+        # FORMATO CORRIGIDO: Lista de dicionários
+        msg_inicial = [{"role": "assistant", "content": f"👋 Olá, {nome}! Encontrei uma solução para seu {produto}. Vamos conversar?"}]
+        return gr.update(visible=False), gr.update(visible=True), msg_inicial, ""
+    
+    return gr.update(visible=True), gr.update(visible=False), None, "### ❌ Erro: CPF não localizado."
 
 def responder_chat(mensagem, historico, cpf_com_mascara):
     if not mensagem: return historico, ""
+    
     cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     
-    # Formato padrão para versões anteriores do Gradio (lista de listas)
-    historico_ia = []
-    if historico:
-        for user_msg, ai_msg in historico:
-            if user_msg: historico_ia.append({"role": "user", "content": user_msg})
-            if ai_msg: historico_ia.append({"role": "assistant", "content": ai_msg})
-
-    res = agente.responder(mensagem, str(cliente), historico_ia)
-    historico.append([mensagem, res])
+    # Prepara o histórico para a IA (garante que seja lista de dicts)
+    historico = historico or []
+    
+    # Chama o motor da IA
+    resposta_ia = agente.responder(mensagem, str(cliente), historico)
+    
+    # Atualiza o histórico do Gradio com os novos dicionários
+    historico.append({"role": "user", "content": mensagem})
+    historico.append({"role": "assistant", "content": resposta_ia})
+    
     return historico, ""
 
 def criar_interface():
     titulo_sessao = random.choice(TITULOS_IA)
-    # Removido o parâmetro CSS daqui para evitar o UserWarning
     with gr.Blocks(title="RenovaIA Pro") as demo:
         with gr.Column(visible=True) as tela_login:
             gr.Markdown("# 🏦 Portal RenovaIA", elem_classes="main-header")
@@ -65,7 +69,7 @@ def criar_interface():
 
             with gr.Row():
                 with gr.Column(scale=4):
-                    # Removido type="messages" para evitar o TypeError
+                    # Mantemos sem o type="messages" pois o Gradio novo já assume pelo formato dos dados
                     chatbot = gr.Chatbot(label="Consultor Virtual", height=550, sanitize_html=False)
                     with gr.Row():
                         txt_msg = gr.Textbox(placeholder="Fale com nosso consultor...", scale=8, show_label=False)
@@ -79,6 +83,7 @@ def criar_interface():
 
         btn_entrar.click(validar_e_entrar, [cpf_input], [tela_login, tela_chat, chatbot, status_login])
         btn_sair.click(lambda: (gr.update(visible=True), gr.update(visible=False), None, ""), None, [tela_login, tela_chat, chatbot, status_login])
+        
         btn_send.click(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
         txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
 
