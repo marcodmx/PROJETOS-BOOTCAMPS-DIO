@@ -2,26 +2,33 @@ import os
 import importlib
 from interface.gradio_ui import criar_interface, MEU_CSS
 
-# ==========================================================
-# 1. Configuração de Inicialização
-# ==========================================================
-# Criamos a instância da interface chamando a função do gradio_ui.py
+# ============================================================
+# 1. PREPARAÇÃO DO AMBIENTE
+# ============================================================
+# Dica: Certifique-se de que a variável GROQ_API_KEY esteja 
+# configurada no seu ambiente operacional antes de rodar.
+
+# ============================================================
+# 2. INICIALIZAÇÃO DA INTERFACE
+# ============================================================
+# Chamamos a função que constrói os blocos do Gradio
 demo = criar_interface()
 
-# ==========================================================
-# 2. Execução do Servidor
-# ==========================================================
+# ============================================================
+# 3. LANÇAMENTO DO SERVIDOR
+# ============================================================
 if __name__ == "__main__":
     """
-    Nota técnica: Passamos o MEU_CSS dentro do launch() para 
-    evitar o UserWarning do Gradio 6.0+, garantindo que os 
-    estilos de boleto e cores sejam injetados corretamente.
+    Execução do servidor Gradio.
+    Passamos o MEU_CSS aqui para evitar o 'UserWarning' das versões 
+    mais recentes e garantir que o design do Banco RenovaIA seja aplicado.
     """
-    print("🚀 Iniciando o Portal RenovaIA...")
+    print("🚀 Servidor Banco RenovaIA iniciando...")
     
     demo.launch(
-        css=MEU_CSS,            # Injeção de estilo recomendada
-        debug=True,             # Mostra erros detalhados no console
-        share=False,            # Mude para True se quiser gerar um link público
-        show_error=True         # Exibe erros na interface para o usuário
+        css=MEU_CSS,            # Aplica o estilo customizado (Boleto, Cores, Fontes)
+        debug=True,             # Ativa log detalhado para facilitar correções
+        show_error=True,        # Exibe mensagens de erro amigáveis na UI
+        server_name="0.0.0.0",  # Permite acesso externo se necessário
+        quiet=False             # Mantém o log de inicialização visível
     )
