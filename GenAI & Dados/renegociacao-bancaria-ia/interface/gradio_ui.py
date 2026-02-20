@@ -1,54 +1,92 @@
 import gradio as gr
-from core.cpf_validator import validar_cpf
-from core.state_manager import buscar_cliente
-from core.negotiation_engine import gerar_proposta, registrar_tentativa, pode_negociar, aceitar_proposta
-from services.llm_adapter import gerar_resposta
+from core.database import buscar_cliente_por_cpf
+from core.engine import AgenteNegociador
 
-def fluxo_negociacao(cpf, mensagem):
-    if not validar_cpf(cpf):
-        return "CPF inválido."
+# Inicializa o motor de negociação
+agente = AgenteNegociador()
 
-    cliente = buscar_cliente(cpf)
+# CSS moderno para o portal
+MEU_CSS = """
+.gradio-container { background-color: #f7fafc !important; }
+.main-header { text-align: center; color: #2c5282; font-weight: bold; margin-bottom: 10px; }
+"""
+
+# ==========================================================
+# Funções auxiliares
+# ==========================================================
+def formatar_historico(historico_gradio):
+    novo_historico = []
+    if historico_gradio:
+        for user_msg, bot_msg in historico_gradio:
+            if user_msg:
+                novo_historico.append({"role": "user", "content": user_msg})
+            if bot_msg:
+                novo_historico.append({"role": "assistant", "content": bot_msg})
+    return novo_historico
+
+def responder_chat(mensagem, historico, cpf_com_mascara):
+    cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
+    cliente = buscar_cliente_por_cpf(cpf_limpo)
+    
+    historico_ia = formatar_historico(historico)
+
     if not cliente:
-        return "Cliente não encontrado."
+        return historico, ""
+    
+    if "🔍 Verificar Ofertas" in mensagem:
+        comando = "Gere uma proposta de quitação à vista e uma de parcelamento"
+        res = agente.responder(comando, str(cliente), historico_ia)
+    elif "✅ Já efetuei o pagamento" in mensagem:
+        res = "✍️ **Aviso de pagamento registrado!** O prazo para baixa bancária é de até 72h úteis. Guarde seu comprovante."
+    elif "🚪 Encerrar" in mensagem:
+        res = "A RenovaIA agradece seu contato. Sua sessão foi encerrada. Até breve! 👋"
+    else:
+        res = agente.responder(mensagem, str(cliente), historico_ia)
+    
+    historico.append((mensagem, res))
+    return historico, ""
 
-    if cliente["status"] == "acordo_fechado":
-        return "Acordo já foi realizado anteriormente."
-
-    if not pode_negociar(cliente):
-        return "Limite de tentativas atingido. Procure a central de atendimento."
-
-    proposta = gerar_proposta(cliente)
-    registrar_tentativa(cliente)
-
-    resposta_llm = gerar_resposta(
-        f"Cliente deseja negociar dívida de R${cliente['divida']}. "
-        f"Sistema permite {cliente['parcelas_max']} parcelas de R${proposta}."
-        f"Mensagem do cliente: {mensagem}"
-    )
-
-    return f"Proposta: {cliente['parcelas_max']}x de R${proposta}\n\n{resposta_llm}"
-
-def fechar_acordo(cpf):
-    cliente = buscar_cliente(cpf)
+def validar_e_entrar(cpf_com_mascara):
+    cpf_limpo = "".join(filter(str.isdigit, cpf_com_mascara))
+    cliente = buscar_cliente_por_cpf(cpf_limpo)
+    
     if cliente:
-        aceitar_proposta(cliente)
-        return "Acordo fechado com sucesso."
-    return "Cliente não encontrado."
+        nome = cliente['nome'].split()[0]
+        msg_inicial = [[None, f"✨ **Olá, {nome}!** Sou seu consultor virtual RenovaIA. Como posso ajudar com sua saúde financeira hoje?"]]
+        return gr.update(visible=False), gr.update(visible=True), msg_inicial, ""
+    
+    return gr.update(visible=True), gr.update(visible=False), None, "### ❌ CPF não identificado. Tente novamente."
 
+# ==========================================================
+# Função principal de criação da interface
+# ==========================================================
 def criar_interface():
-    with gr.Blocks() as demo:
-        gr.Markdown("# Agente Inteligente de Renegociação Bancária")
+    with gr.Blocks(title="RenovaIA") as demo:
+        # Tela de login
+        with gr.Column(visible=True) as tela_login:
+            gr.Markdown("# 🏦 Portal RenovaIA", elem_classes="main-header")
+            cpf_input = gr.Textbox(label="Informe seu CPF", placeholder="000.000.000-00")
+            btn_entrar = gr.Button("ACESSAR MEU PAINEL", variant="primary")
+            status = gr.Markdown("")
 
-        cpf = gr.Textbox(label="CPF")
-        mensagem = gr.Textbox(label="Mensagem do Cliente")
+        # Tela de chat
+        with gr.Column(visible=False) as tela_chat:
+            gr.Markdown("## 💬 Atendimento Digital")
+            chatbot = gr.Chatbot(label="RenovaIA", height=550)
+            
+            with gr.Row():
+                txt_msg = gr.Textbox(placeholder="Digite sua mensagem...", scale=8, show_label=False)
+                btn_send = gr.Button("Enviar", variant="primary", scale=2)
+            
+            gr.Examples(
+                examples=["🔍 Verificar Ofertas", "✅ Já efetuei o pagamento", "🚪 Encerrar"], 
+                inputs=txt_msg,
+                label="Ações Rápidas"
+            )
 
-        output = gr.Textbox(label="Resposta")
-
-        btn_negociar = gr.Button("Negociar")
-        btn_fechar = gr.Button("Fechar Acordo")
-
-        btn_negociar.click(fluxo_negociacao, inputs=[cpf, mensagem], outputs=output)
-        btn_fechar.click(fechar_acordo, inputs=cpf, outputs=output)
+        # Ações dos botões
+        btn_entrar.click(validar_e_entrar, [cpf_input], [tela_login, tela_chat, chatbot, status])
+        btn_send.click(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
+        txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
 
     return demo
