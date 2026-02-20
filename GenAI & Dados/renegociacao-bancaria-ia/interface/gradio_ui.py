@@ -5,14 +5,14 @@ from core.engine import AgenteNegociador
 
 agente = AgenteNegociador()
 
-TITULOS_IA = ["✨ Sua Jornada Financeira", "🚀 Rumo ao Azul", "🤝 Vamos resolver?"]
+# O dinamismo que eu tinha "esquecido" no churrasco:
+TITULOS_IA = ["✨ Sua Jornada Financeira", "🚀 Rumo ao Azul", "🤝 Vamos resolver?", "💎 Oportunidade Exclusiva"]
 
-# Mantemos a variável de CSS, mas não a passamos no Blocks
 MEU_CSS = """
 .gradio-container { background-color: #f1f5f9 !important; font-family: 'Inter', sans-serif; }
 .main-header { text-align: center; color: #1e3a8a; font-weight: 800; padding: 20px; font-size: 28px; }
 
-/* Bloco de Código (Boleto) Estilizado */
+/* Bloco de Código (Boleto) Estilizado para Copiar/Colar */
 .prose pre {
     background-color: #ffffff !important;
     border: 2px dashed #cbd5e1 !important;
@@ -48,7 +48,6 @@ def validar_e_entrar(cpf_com_mascara):
         dividas = cliente.get('dividas', [])
         produto = dividas[0].get('produto', 'crédito') if dividas else "crédito"
         
-        # Formato de lista de dicionários para compatibilidade
         msg_inicial = [{"role": "assistant", "content": f"👋 Olá, {nome}! Identificamos uma oportunidade de liquidação para seu **{produto}**. Como podemos avançar hoje?"}]
         return gr.update(visible=False), gr.update(visible=True), msg_inicial, ""
     
@@ -71,14 +70,15 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
     historico = historico or []
     resposta_ia = agente.responder(mensagem, str(contexto), historico)
     
-    # Adiciona ao histórico garantindo que seja string
     historico.append({"role": "user", "content": str(mensagem)})
     historico.append({"role": "assistant", "content": str(resposta_ia)})
     
     return historico, ""
 
 def criar_interface():
-    # Removido parâmetro css daqui para evitar UserWarning
+    # Sorteando o título para cada nova execução/sessão
+    titulo_sessao = random.choice(TITULOS_IA)
+    
     with gr.Blocks(title="RenovaIA v2") as demo:
         with gr.Column(visible=True) as tela_login:
             gr.Markdown("# 🏦 Portal de Negociação", elem_classes="main-header")
@@ -87,8 +87,9 @@ def criar_interface():
             status_login = gr.Markdown("")
 
         with gr.Column(visible=False) as tela_chat:
-            gr.Markdown("### 🤝 Negociação em Tempo Real")
-            # Removido type="messages" para evitar TypeError
+            # Aqui o dinamismo volta a brilhar!
+            gr.Markdown(f"### {titulo_sessao}")
+            
             chatbot = gr.Chatbot(label="Atendimento", height=500)
             
             with gr.Row():
@@ -100,6 +101,7 @@ def criar_interface():
                 btn_boleto = gr.Button("📄 Gerar Boleto", size="sm")
                 btn_sair = gr.Button("Sair 🚪", size="sm", variant="secondary")
 
+        # EVENTOS
         btn_entrar.click(validar_e_entrar, [cpf_input], [tela_login, tela_chat, chatbot, status_login])
         btn_send.click(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
         txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
