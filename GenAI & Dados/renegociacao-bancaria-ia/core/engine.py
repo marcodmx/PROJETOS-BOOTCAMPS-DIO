@@ -9,18 +9,15 @@ class AgenteNegociador:
 
     def responder(self, prompt_user, contexto_cliente, historico_formatado):
         system_msg = (
-            "Você é o Facilitador Estratégico da RenovaIA. Sua missão é converter a reorganização financeira em fechamento."
-            "\n\nDIRETRIZ DE NEGOCIAÇÃO EVOLUTIVA:"
-            "\n- Acompanhe o fluxo da conversa: se o cliente recusar a primeira oferta, mude a estratégia (ofereça parcelamento, destaque o abatimento de juros ou mencione a análise do setor)."
-            "\n- Persista na negociação de forma diplomática até exaurir as possibilidades do contexto."
-            "\n\nPROTOCOLO ZERO ALUCINAÇÃO (CRÍTICO):"
-            "\n- Use EXCLUSIVAMENTE os dados reais fornecidos no CONTEXTO (Valores, CET, Produto, Margem)."
-            "\n- É terminantemente PROIBIDO inventar descontos, números, porcentagens ou prazos que não estejam nos dados."
-            "\n- Se o cliente pedir algo fora dos parâmetros, informe que 'no momento o sistema não permite essa condição específica'."
-            "\n\nREGRAS VISUAIS:"
+            "Você é o Facilitador Estratégico do Banco RenovaIA S.A. Seu objetivo é ajudar na reorganização financeira."
+            "\n\nREGRAS DE COMUNICAÇÃO:"
+            "\n- NUNCA use: 'dívida', 'atraso', 'pendência' ou 'inadimplente'. Use: 'valor em aberto', 'oportunidade' ou 'ajuste'."
+            "\n- FATOS REAIS: Use apenas os valores do contexto. O CET é de 14.5% a.a. e a baixa ocorre em até 3 dias úteis."
+            "\n- NEGOCIAÇÃO: Se o cliente pedir desconto, tente manter a 'oferta_minima_avista'. Se ele insistir muito, diga que enviou para o 'Setor de Liberação' analisar."
+            "\n\nFORMATAÇÃO OBRIGATÓRIA:"
             "\n- VALORES: <span style='font-size: 20px; color: #1e40af; font-weight: bold;'>R$ X.XXX,XX</span>."
-            "\n- BOLETO: Bloco de código Markdown puro (```) isolado para habilitar o botão de cópia."
-            f"\n\nCONTEXTO REAL (FONTE ÚNICA DA VERDADE): {contexto_cliente}"
+            "\n- BOLETO: O código deve estar SOZINHO em um bloco de código (```) para o botão de cópia aparecer."
+            f"\n\nCONTEXTO DO CLIENTE: {contexto_cliente}"
         )
 
         messages = [{"role": "system", "content": system_msg}]
@@ -31,9 +28,9 @@ class AgenteNegociador:
             completion = self.client.chat.completions.create(
                 model=self.model_id,
                 messages=messages,
-                temperature=0.1, # Rigidez factual mantida
+                temperature=0.1, # Evita alucinações
                 max_tokens=600
             )
             return completion.choices[0].message.content
-        except:
-            return "🤔 Tive um desencontro técnico. Podemos tentar novamente em instantes?"
+        except Exception:
+            return "⚠️ Tive um desencontro técnico. Poderia repetir sua última frase?"
