@@ -7,14 +7,12 @@ agente = AgenteNegociador()
 
 TITULOS_IA = ["✨ Sua Jornada Financeira", "🚀 Rumo ao Azul", "🤝 Vamos resolver?"]
 
+# Mantemos a variável de CSS, mas não a passamos no Blocks
 MEU_CSS = """
-.gradio-container { background-color: #f1f5f9 !important; }
-.main-header { text-align: center; color: #1e3a8a; font-weight: 800; padding: 20px; }
+.gradio-container { background-color: #f1f5f9 !important; font-family: 'Inter', sans-serif; }
+.main-header { text-align: center; color: #1e3a8a; font-weight: 800; padding: 20px; font-size: 28px; }
 
-/* Estilo do Chat */
-.bubble { border-radius: 12px !important; }
-
-/* Estilo do Bloco de Boleto (Markdown Code) */
+/* Bloco de Código (Boleto) Estilizado */
 .prose pre {
     background-color: #ffffff !important;
     border: 2px dashed #cbd5e1 !important;
@@ -29,12 +27,13 @@ MEU_CSS = """
     font-size: 1.1em !important;
 }
 
-/* Destaque Azul para valores */
+/* Destaque para valores financeiros */
 span[style*="color: #1e40af"] {
     background-color: #dbeafe;
     padding: 2px 8px;
     border-radius: 6px;
     border: 1px solid #bfdbfe;
+    font-weight: bold;
 }
 """
 
@@ -49,6 +48,7 @@ def validar_e_entrar(cpf_com_mascara):
         dividas = cliente.get('dividas', [])
         produto = dividas[0].get('produto', 'crédito') if dividas else "crédito"
         
+        # Formato de lista de dicionários para compatibilidade
         msg_inicial = [{"role": "assistant", "content": f"👋 Olá, {nome}! Identificamos uma oportunidade de liquidação para seu **{produto}**. Como podemos avançar hoje?"}]
         return gr.update(visible=False), gr.update(visible=True), msg_inicial, ""
     
@@ -61,7 +61,6 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
     cliente = buscar_cliente_por_cpf(cpf_limpo)
     divida = cliente.get('dividas', [{}])[0] if cliente else {}
     
-    # Contexto minimalista para a IA focar na evolução e não na repetição
     contexto = {
         "produto": divida.get("produto"),
         "total": divida.get("valor_total_atualizado"),
@@ -72,17 +71,15 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
     historico = historico or []
     resposta_ia = agente.responder(mensagem, str(contexto), historico)
     
-    # Limpeza de saída para Gradio
-    if isinstance(resposta_ia, (dict, list)):
-        resposta_ia = str(resposta_ia)
-
-    historico.append({"role": "user", "content": mensagem})
-    historico.append({"role": "assistant", "content": resposta_ia})
+    # Adiciona ao histórico garantindo que seja string
+    historico.append({"role": "user", "content": str(mensagem)})
+    historico.append({"role": "assistant", "content": str(resposta_ia)})
     
     return historico, ""
 
 def criar_interface():
-    with gr.Blocks(title="RenovaIA v2", css=MEU_CSS) as demo:
+    # Removido parâmetro css daqui para evitar UserWarning
+    with gr.Blocks(title="RenovaIA v2") as demo:
         with gr.Column(visible=True) as tela_login:
             gr.Markdown("# 🏦 Portal de Negociação", elem_classes="main-header")
             cpf_input = gr.Textbox(label="Digite seu CPF para consultar ofertas", placeholder="000.000.000-00")
@@ -91,7 +88,8 @@ def criar_interface():
 
         with gr.Column(visible=False) as tela_chat:
             gr.Markdown("### 🤝 Negociação em Tempo Real")
-            chatbot = gr.Chatbot(label="Atendimento", height=500, type="messages")
+            # Removido type="messages" para evitar TypeError
+            chatbot = gr.Chatbot(label="Atendimento", height=500)
             
             with gr.Row():
                 txt_msg = gr.Textbox(placeholder="Digite sua proposta ou dúvida...", scale=7, show_label=False)
@@ -102,7 +100,6 @@ def criar_interface():
                 btn_boleto = gr.Button("📄 Gerar Boleto", size="sm")
                 btn_sair = gr.Button("Sair 🚪", size="sm", variant="secondary")
 
-        # Eventos
         btn_entrar.click(validar_e_entrar, [cpf_input], [tela_login, tela_chat, chatbot, status_login])
         btn_send.click(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
         txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
