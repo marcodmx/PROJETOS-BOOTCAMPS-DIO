@@ -11,7 +11,8 @@ MEU_CSS = """
 
 def limpar_historico_para_ia(historico_gradio):
     if not historico_gradio: return []
-    return [{"role": m["role"], "content": m["content"]} for m in historico_gradio]
+    # Filtra apenas o conteúdo essencial para a API
+    return [{"role": m["role"], "content": m["content"]} for m in historico_gradio if "role" in m and "content" in m]
 
 def responder_chat(mensagem, historico, cpf_com_mascara):
     if not mensagem:
@@ -24,17 +25,19 @@ def responder_chat(mensagem, historico, cpf_com_mascara):
     historico_ia = limpar_historico_para_ia(historico)
 
     try:
-        # A IA interpreta a intenção e decide se é hora de mandar o boleto
+        # A IA interpreta a intenção e decide sobre o boleto
         res = agente.responder(mensagem, str(cliente), historico_ia)
         
-        # Reforço visual de empatia se houver fechamento
+        # Reforço visual de empatia se houver fechamento/boleto (identificado pelas crases ```)
         if "```" in res:
-            if "📧" not in res: # Evita duplicar se a IA já escreveu
+            if "📧" not in res:
                 res += "\n\n📧 **Acabei de enviar o boleto completo e o comprovante para o seu e-mail.**\n\nFique tranquilo, agora é com a gente. Vai dar tudo certo! 😊 🙌"
 
     except Exception as e:
         res = f"🤔 Algo deu errado por aqui. Vamos tentar de novo? (Erro: {str(e)})"
     
+    # No Gradio 5.x, o histórico já funciona como lista de dicts por padrão, 
+    # basta não usar o argumento 'type' no componente.
     historico.append({"role": "user", "content": mensagem})
     historico.append({"role": "assistant", "content": res})
     
@@ -61,8 +64,8 @@ def criar_interface():
 
         with gr.Column(visible=False) as tela_chat:
             gr.Markdown("## ✨ Atendimento Personalizado")
-            # Adicionado suporte a avatar para ficar mais humano
-            chatbot = gr.Chatbot(label="Consultor Digital", height=500, type="messages")
+            # REMOVIDO o type="messages" para evitar o TypeError
+            chatbot = gr.Chatbot(label="Consultor Digital", height=500)
             
             with gr.Row():
                 txt_msg = gr.Textbox(placeholder="Digite sua mensagem ou escolha uma opção...", scale=8, show_label=False)
