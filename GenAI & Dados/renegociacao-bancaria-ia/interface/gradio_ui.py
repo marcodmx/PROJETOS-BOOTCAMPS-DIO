@@ -1,6 +1,6 @@
 import gradio as gr
-from core.database import buscar_cliente_por_cpf
-from core.engine import AgenteNegociador
+from .core.database import buscar_cliente_por_cpf
+from .core.engine import AgenteNegociador
 
 # Inicializa o motor de negociação
 agente = AgenteNegociador()
