@@ -77,7 +77,6 @@ with gr.Blocks(title="RenovaIA") as demo:
 
 if __name__ == "__main__":
     gr.close_all()
-    # AJUSTE CRÍTICO: Removi o inline=False e forçamos a renderização
     demo.launch(
         share=True, 
         debug=True, 
