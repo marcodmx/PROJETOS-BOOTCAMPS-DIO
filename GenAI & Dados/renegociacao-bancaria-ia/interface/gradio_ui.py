@@ -48,8 +48,11 @@ def criar_interface():
 
         with gr.Column(visible=False) as tela_chat:
             with gr.Row():
-                gr.Markdown(f"## {titulo_sessao}", scale=8)
-                btn_sair = gr.Button("Sair 🚪", variant="secondary", elem_classes="btn-sair")
+                # CORREÇÃO: Removido 'scale' do Markdown. Usamos Column para dar proporção.
+                with gr.Column(scale=8):
+                    gr.Markdown(f"## {titulo_sessao}")
+                with gr.Column(scale=1, min_width=100):
+                    btn_sair = gr.Button("Sair 🚪", variant="secondary", elem_classes="btn-sair")
 
             with gr.Row():
                 with gr.Column(scale=4):
@@ -69,16 +72,13 @@ def criar_interface():
         btn_entrar.click(validar_e_entrar, [cpf_input], [tela_login, tela_chat, chatbot, status])
         btn_sair.click(lambda: (gr.update(visible=True), gr.update(visible=False), None, ""), None, [tela_login, tela_chat, chatbot, status])
         
-        # O pulo do gato: Conectar os botões para escrever no chat e enviar automaticamente
-        def acao_rapida(texto, hist, cpf):
-            return responder_chat(texto, hist, cpf)
-
         btn_send.click(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
         txt_msg.submit(responder_chat, [txt_msg, chatbot, cpf_input], [chatbot, txt_msg])
 
-        btn_ofertas.click(lambda h, c: acao_rapida("Quais são minhas ofertas?", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
-        btn_desc.click(lambda h, c: acao_rapida("Quero um desconto maior!", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
-        btn_boleto.click(lambda h, c: acao_rapida("Preciso do boleto.", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
-        btn_ajuda.click(lambda h, c: acao_rapida("Como funciona o desconto de juros?", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
+        # Ações Rápidas - Agora enviando a mensagem correta ao chat
+        btn_ofertas.click(lambda h, c: responder_chat("Quais são minhas ofertas?", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
+        btn_desc.click(lambda h, c: responder_chat("Quero um desconto maior!", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
+        btn_boleto.click(lambda h, c: responder_chat("Preciso do boleto.", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
+        btn_ajuda.click(lambda h, c: responder_chat("Como funciona o desconto de juros?", h, c), [chatbot, cpf_input], [chatbot, txt_msg])
 
     return demo
